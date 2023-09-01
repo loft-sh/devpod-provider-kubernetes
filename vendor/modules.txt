@@ -189,9 +189,9 @@ github.com/klauspost/compress/internal/cpuinfo
 github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/kr/pretty v0.2.1
+# github.com/kr/pretty v0.3.1
 ## explicit; go 1.12
-# github.com/loft-sh/devpod v0.0.3-0.20230512100016-aee23bbc9aad => ../devpod
+# github.com/loft-sh/devpod v0.3.7-0.20230901154107-eb8b4518c008
 ## explicit; go 1.20
 github.com/loft-sh/devpod/cmd/flags
 github.com/loft-sh/devpod/pkg/command
@@ -283,6 +283,8 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
+# github.com/stretchr/testify v1.8.2
+## explicit; go 1.13
 # github.com/tidwall/jsonc v0.3.2
 ## explicit; go 1.16
 github.com/tidwall/jsonc
@@ -567,4 +569,3 @@ k8s.io/klog/v2/internal/severity
 # sigs.k8s.io/structured-merge-diff/v4 v4.1.2
 ## explicit; go 1.13
 sigs.k8s.io/structured-merge-diff/v4/value
-# github.com/loft-sh/devpod => ../devpod

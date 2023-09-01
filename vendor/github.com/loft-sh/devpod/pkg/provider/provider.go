@@ -131,9 +131,8 @@ func (a ProviderAgentConfig) IsDockerDriver() bool {
 }
 
 const (
-	DockerDriver     = "docker"
-	KubernetesDriver = "kubernetes"
-	CustomDriver     = "custom"
+	DockerDriver = "docker"
+	CustomDriver = "custom"
 )
 
 type ProviderCustomDriverConfig struct {
