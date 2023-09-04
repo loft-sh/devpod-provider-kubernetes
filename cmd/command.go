@@ -25,7 +25,7 @@ func NewCommandCmd() *cobra.Command {
 				return err
 			}
 
-			return cmd.Run(context.Background(), options, log.Default)
+			return cmd.Run(context.Background(), options, log.Default.ErrorStreamOnly())
 		},
 	}
 
@@ -38,7 +38,7 @@ func (cmd *CommandCmd) Run(ctx context.Context, options *options.Options, log lo
 		ctx,
 		options.DevContainerID,
 		os.Getenv("DEVCONTAINER_USER"),
-		os.Getenv("DEVCONTIANER_COMMAND"),
+		os.Getenv("DEVCONTAINER_COMMAND"),
 		os.Stdin,
 		os.Stdout,
 		os.Stderr,
