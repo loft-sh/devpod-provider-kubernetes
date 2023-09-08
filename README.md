@@ -20,3 +20,10 @@ devpod up .
 ```
 
 You'll need to wait for the pod and environment setup.
+
+## Building new version
+To build a new version with specific version, just run a command in the root of the repository:
+
+```sh
+RELEASE_VERSION=x.y.z ./hack/build.sh
+```
