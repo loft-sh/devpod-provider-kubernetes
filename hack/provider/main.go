@@ -17,19 +17,36 @@ var checksumMap = map[string]string{
 	"./release/devpod-provider-kubernetes-windows-amd64.exe": "##CHECKSUM_WINDOWS_AMD64##",
 }
 
+func providerConfigPath(buildVersion string) string {
+	if buildVersion == "prod" {
+		return "./hack/provider/provider.yaml"
+	} else {
+		return "./hack/provider/provider-dev.yaml"
+	}
+}
+
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "Expected version as argument")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "Expected release version, build version and project root as arguments")
 		os.Exit(1)
 		return
 	}
 
-	content, err := os.ReadFile("./hack/provider/provider.yaml")
+	releaseVersion := os.Args[1]
+	buildVersion := os.Args[2]
+	projectRoot := os.Args[3]
+
+	content, err := os.ReadFile(providerConfigPath(buildVersion))
 	if err != nil {
 		panic(err)
 	}
 
-	replaced := strings.Replace(string(content), "##VERSION##", os.Args[1], -1)
+	replaced := strings.Replace(string(content), "##VERSION##", releaseVersion, -1)
+
+	if buildVersion == "dev" {
+		replaced = strings.Replace(replaced, "##PROJECT_ROOT##", projectRoot, -1)
+	}
+
 	for k, v := range checksumMap {
 		checksum, err := File(k)
 		if err != nil {

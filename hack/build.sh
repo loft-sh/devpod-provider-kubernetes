@@ -22,6 +22,16 @@ fi
 GO_BUILD_CMD="go build"
 GO_BUILD_LDFLAGS="-s -w"
 
+BUILD_VERSION="prod"
+for arg in "$@"; do
+    if [ "$arg" == "--dev" ]; then
+        BUILD_VERSION="dev"
+        break
+    fi
+done
+
+echo "Building version: ${BUILD_VERSION}"
+
 if [[ -z "${PROVIDER_BUILD_PLATFORMS}" ]]; then
     PROVIDER_BUILD_PLATFORMS="linux windows darwin"
 fi
@@ -59,5 +69,4 @@ for OS in ${PROVIDER_BUILD_PLATFORMS[@]}; do
   done
 done
 
-# generate provider.yaml
-go run -mod vendor "${PROVIDER_ROOT}/hack/provider/main.go" ${RELEASE_VERSION} > "${PROVIDER_ROOT}/release/provider.yaml"
+go run -mod vendor "${PROVIDER_ROOT}/hack/provider/main.go" ${RELEASE_VERSION} ${BUILD_VERSION} ${PROVIDER_ROOT} > "${PROVIDER_ROOT}/release/provider.yaml"
