@@ -1,0 +1,125 @@
+name: kubernetes
+version: ##VERSION##
+icon: https://devpod.sh/assets/kubernetes.svg
+home: https://github.com/loft-sh/devpod
+description: |-
+  DevPod on Kubernetes
+optionGroups:
+  - options:
+      - KUBERNETES_NAMESPACE
+      - DISK_SIZE
+    name: "Options"
+    defaultVisible: true
+  - options:
+      - KUBERNETES_CONTEXT
+      - KUBERNETES_CONFIG
+    name: "Kubernetes Config"
+  - options:
+      - CLUSTER_ROLE
+      - SERVICE_ACCOUNT
+      - CREATE_NAMESPACE
+      - KUBECTL_PATH
+      - INACTIVITY_TIMEOUT
+      - STORAGE_CLASS
+      - PVC_ACCESS_MODE
+      - RESOURCES
+      - POD_MANIFEST_TEMPLATE
+      - NODE_SELECTOR
+      - HELPER_RESOURCES
+      - HELPER_IMAGE
+      - LABELS
+    name: "Advanced Options"
+options:
+  DISK_SIZE:
+    description: The default size for the persistent volume to use.
+    default: 10Gi
+  KUBERNETES_CONTEXT:
+    description: The kubernetes context to use. E.g. my-kube-context
+  KUBERNETES_CONFIG:
+    description: The kubernetes config to use. E.g. /path/to/my/kube/config.yaml
+  KUBERNETES_NAMESPACE:
+    description: The kubernetes namespace to use
+    command: |-
+      NAMESPACE=$(${KUBECTL_PATH} config view --kubeconfig=${KUBERNETES_CONFIG} --context=${KUBERNETES_CONTEXT} --minify -o jsonpath='{..namespace}' 2>/dev/null || true)
+      if [ -z "${NAMESPACE}" ]; then
+        NAMESPACE=devpod
+      fi
+      echo $NAMESPACE
+  CREATE_NAMESPACE:
+    description: If true, DevPod will try to create the namespace.
+    default: "true"
+    type: boolean
+    global: true
+  CLUSTER_ROLE:
+    description: If defined, DevPod will create a role binding for the given cluster role.
+    global: true
+  SERVICE_ACCOUNT:
+    description: If defined, DevPod will use the given service account for the dev container.
+    global: true
+  HELPER_IMAGE:
+    description: The image DevPod will use to find out the cluster architecture. Defaults to alpine.
+    global: true
+  HELPER_RESOURCES:
+    description: The resources to use for the workspace init container. E.g. requests.cpu=100m,limits.memory=1Gi
+    global: true
+  KUBECTL_PATH:
+    description: The path where to find the kubectl binary.
+    default: kubectl
+    global: true
+  INACTIVITY_TIMEOUT:
+    description: "If defined, will automatically stop the pod after the inactivity period. Examples: 10m, 1h"
+  STORAGE_CLASS:
+    description: If defined, DevPod will use the given storage class to create the persistent volume claim. You will need to ensure the storage class exists in your cluster!
+    global: true
+  PVC_ACCESS_MODE:
+    description: If defined, DevPod will use the given access mode to create the persistent volume claim. You will need to ensure the storage class support the given access mode!. E.g. RWO or ROX or RWX or RWOP
+    global: true
+  NODE_SELECTOR:
+    description: The node selector to use for the workspace pod. E.g. my-label=value,my-label-2=value-2
+    global: true
+  RESOURCES:
+    description: The resources to use for the workspace container. E.g. requests.cpu=500m,limits.memory=5Gi,limits.gpu-vendor.example/example-gpu=1
+    global: true
+  POD_MANIFEST_TEMPLATE:
+    description: Pod manifest template file path used as template to build the devpod pod. E.g. /path/pod_manifest.yaml
+    global: true
+  LABELS:
+    description: The labels to use for the workspace pod. E.g. devpod.sh/example=value,devpod.sh/example2=value2
+    global: true
+agent:
+  containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
+  local: true
+  binaries:
+    KUBERNETES_PROVIDER:
+      - os: linux
+        arch: amd64
+        path: http://localhost:8000/devpod-provider-kubernetes-linux-amd64
+        checksum: ##CHECKSUM_LINUX_AMD64##
+      - os: linux
+        arch: arm64
+        path: http://localhost:8000/devpod-provider-kubernetes-linux-arm64
+        checksum: ##CHECKSUM_LINUX_ARM64##
+      - os: darwin
+        arch: amd64
+        path: http://localhost:8000/devpod-provider-kubernetes-darwin-amd64
+        checksum: ##CHECKSUM_DARWIN_AMD64##
+      - os: darwin
+        arch: arm64
+        path: http://localhost:8000/devpod-provider-kubernetes-darwin-arm64
+        checksum: ##CHECKSUM_DARWIN_ARM64##
+      - os: windows
+        arch: amd64
+        path: http://localhost:8000/devpod-provider-kubernetes-windows-amd64.exe
+        checksum: ##CHECKSUM_WINDOWS_AMD64##
+  driver: custom
+  custom:
+    findDevContainer: ${KUBERNETES_PROVIDER} find
+    commandDevContainer: ${KUBERNETES_PROVIDER} command
+    startDevContainer: ${KUBERNETES_PROVIDER} start
+    stopDevContainer: ${KUBERNETES_PROVIDER} stop
+    runDevContainer: ${KUBERNETES_PROVIDER} run
+    deleteDevContainer: ${KUBERNETES_PROVIDER} delete
+    targetArchitecture: ${KUBERNETES_PROVIDER} target-architecture
+exec:
+  command: |-
+    "${DEVPOD}" helper sh -c "${COMMAND}"
