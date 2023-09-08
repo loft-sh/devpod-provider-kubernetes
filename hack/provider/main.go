@@ -26,14 +26,15 @@ func providerConfigPath(buildVersion string) string {
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "Expected release version and build version as arguments")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "Expected release version, build version and project root as arguments")
 		os.Exit(1)
 		return
 	}
 
 	releaseVersion := os.Args[1]
 	buildVersion := os.Args[2]
+	projectRoot := os.Args[3]
 
 	content, err := os.ReadFile(providerConfigPath(buildVersion))
 	if err != nil {
@@ -41,6 +42,11 @@ func main() {
 	}
 
 	replaced := strings.Replace(string(content), "##VERSION##", releaseVersion, -1)
+
+	if buildVersion == "dev" {
+		replaced = strings.Replace(replaced, "##PROJECT_ROOT##", projectRoot, -1)
+	}
+
 	for k, v := range checksumMap {
 		checksum, err := File(k)
 		if err != nil {

@@ -32,16 +32,11 @@ RELEASE_VERSION=0.0.1-dev ./hack/build.sh --dev
 ```sh
 devpod provider delete kubernetes
 ```
-3. Run local http server with the new provider which provides the new version
-```sh
-cd ./release
-python3 -m http.server 8000
-```
-4. Install the new provider from the local build
+3. Install the new provider from the local build
 ```sh
 devpod provider add ./release/provider.yaml --name kubernetes
 ```
-5. Test your provider, e.g. with `devpod up` command. Make sure you have a valid kubeconfig file in your home directory.
+4. Test your provider, e.g. with `devpod up` command. Make sure you have a valid kubeconfig file in your home directory.
 ```sh
 devpod up <repository-url> --provider kubernetes --debug 
 ```

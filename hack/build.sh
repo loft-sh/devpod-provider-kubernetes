@@ -69,4 +69,4 @@ for OS in ${PROVIDER_BUILD_PLATFORMS[@]}; do
   done
 done
 
-go run -mod vendor "${PROVIDER_ROOT}/hack/provider/main.go" ${RELEASE_VERSION} ${BUILD_VERSION} > "${PROVIDER_ROOT}/release/provider.yaml"
+go run -mod vendor "${PROVIDER_ROOT}/hack/provider/main.go" ${RELEASE_VERSION} ${BUILD_VERSION} ${PROVIDER_ROOT} > "${PROVIDER_ROOT}/release/provider.yaml"
