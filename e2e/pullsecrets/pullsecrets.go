@@ -69,7 +69,7 @@ var _ = Describe("Pull secrets", func() {
 		deleteNamespace()
 	})
 
-	// NOTE: It was tested with Docker Hub and AWS ECR
+	// NOTE: It was tested with Docker Hub and AWS ECR, make sure image is private
 	It("should create pull secret and make pod use it", func() {
 		By("Login to private container registry")
 
@@ -79,7 +79,7 @@ var _ = Describe("Pull secrets", func() {
 		}
 
 		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("test-image")
+		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
 		dockerBuild(imageName, "pullsecrets/")
@@ -91,7 +91,9 @@ var _ = Describe("Pull secrets", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Create pod with the image from the private registry")
-		createPod(namespace, imageName, pullSecretName, client)
+		createPod(client, namespace, imageName, pullSecretName)
+
+		registry.Logout()
 	})
 
 	It("should delete created pull secret if called DeletePullSecret()", func() {
@@ -101,7 +103,7 @@ var _ = Describe("Pull secrets", func() {
 		}
 
 		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("test-image")
+		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
 
@@ -116,6 +118,8 @@ var _ = Describe("Pull secrets", func() {
 
 		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
 		Expect(err).To(HaveOccurred())
+
+		registry.Logout()
 	})
 
 	It("should recreate pull secret if it exists", func() {
@@ -125,7 +129,7 @@ var _ = Describe("Pull secrets", func() {
 		}
 
 		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("test-image")
+		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
 		dockerBuild(imageName, "pullsecrets/")
@@ -139,6 +143,40 @@ var _ = Describe("Pull secrets", func() {
 
 		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
+
+		registry.Logout()
+	})
+
+	// NOTE: make sure the image is public
+	It("should work with public images without pull secret", func() {
+		registry, err := RegistryFromEnv()
+		if err != nil {
+			Skip(err.Error())
+		}
+
+		if registry.isAWSContainerRegistry() {
+			Skip("This test doesn't support AWS ECR public images")
+		}
+
+		pullSecretName := "test-pull-secret"
+		imageName := registry.ImageName("public-test-image")
+
+		registry.Login()
+		dockerBuild(imageName, "pullsecrets/")
+		registry.Push(imageName)
+
+		// we should be able to push image without pull secret
+		registry.Logout()
+
+		// there shouldn't be any error, but the pull secret shouldn't be created
+		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
+		Expect(err).To(HaveOccurred())
+
+		// create pod without pull secret
+		createPod(client, namespace, imageName)
 	})
 })
 
@@ -154,7 +192,7 @@ func getKubeConfigPath() string {
 	return kubeConfigPath
 }
 
-func createPod(namespace, image, pullSecretName string, client *k8s.Clientset) {
+func createPod(client *k8s.Clientset, namespace, image string, pullSecretName ...string) {
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-pod",
@@ -168,12 +206,15 @@ func createPod(namespace, image, pullSecretName string, client *k8s.Clientset) {
 					ImagePullPolicy: v1.PullAlways,
 				},
 			},
-			ImagePullSecrets: []v1.LocalObjectReference{
-				{
-					Name: pullSecretName,
-				},
-			},
 		},
+	}
+
+	if len(pullSecretName) > 0 {
+		pod.Spec.ImagePullSecrets = []v1.LocalObjectReference{
+			{
+				Name: pullSecretName[0],
+			},
+		}
 	}
 
 	_, err := client.CoreV1().Pods(namespace).Create(context.TODO(), pod, metav1.CreateOptions{})

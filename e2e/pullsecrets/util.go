@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
 type Registry struct {
@@ -26,6 +27,10 @@ func RegistryFromEnv() (*Registry, error) {
 		Server:   containerRegistry,
 	}, nil
 
+}
+
+func (r *Registry) isAWSContainerRegistry() bool {
+	return strings.Contains(r.Server, "amazonaws.com")
 }
 
 func (r *Registry) Login() {
@@ -50,6 +55,14 @@ func (r *Registry) Login() {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Sprintf("failed to login to Docker: %v, output: %s", err, output))
+	}
+}
+
+func (r *Registry) Logout() {
+	cmd := exec.Command("docker", "logout", r.Server)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(fmt.Sprintf("failed to logout of Docker: %v, output: %s", err, output))
 	}
 }
 
