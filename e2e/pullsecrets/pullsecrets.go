@@ -87,8 +87,9 @@ var _ = Describe("Pull secrets", func() {
 
 		By("Create pull secret")
 
-		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(created).To(BeTrue())
 
 		By("Create pod with the image from the private registry")
 		createPod(client, namespace, imageName, pullSecretName)
@@ -107,8 +108,9 @@ var _ = Describe("Pull secrets", func() {
 
 		registry.Login()
 
-		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(created).To(BeTrue())
 
 		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
@@ -135,13 +137,14 @@ var _ = Describe("Pull secrets", func() {
 		dockerBuild(imageName, "pullsecrets/")
 		registry.Push(imageName)
 
-		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(created).To(BeTrue())
 
 		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		_, err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
 
 		registry.Logout()
@@ -169,8 +172,9 @@ var _ = Describe("Pull secrets", func() {
 		registry.Logout()
 
 		// there shouldn't be any error, but the pull secret shouldn't be created
-		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(created).To(BeFalse())
 
 		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
 		Expect(err).To(HaveOccurred())

@@ -165,8 +165,9 @@ func (k *KubernetesDriver) runContainer(
 	resources := parseResources(k.options.Resources, k.Log)
 
 	// ensure pull secrets
+	pullSecretsCreated := false
 	if k.options.KubernetesPullSecretsEnabled == "true" {
-		err := k.EnsurePullSecret(ctx, getPullSecretsName(id), options.Image)
+		pullSecretsCreated, err = k.EnsurePullSecret(ctx, getPullSecretsName(id), options.Image)
 		if err != nil {
 			return err
 		}
@@ -183,7 +184,7 @@ func (k *KubernetesDriver) runContainer(
 	pod.Spec.Volumes = getVolumes(pod, id)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
-	if k.options.KubernetesPullSecretsEnabled == "true" {
+	if k.options.KubernetesPullSecretsEnabled == "true" && pullSecretsCreated {
 		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: getPullSecretsName(id)}}
 	}
 

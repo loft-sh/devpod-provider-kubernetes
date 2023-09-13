@@ -15,37 +15,35 @@ func (k *KubernetesDriver) EnsurePullSecret(
 	ctx context.Context,
 	pullSecretName string,
 	dockerImage string,
-) error {
+) (bool, error) {
 	k.Log.Debugf("Ensure pull secrets")
 
 	host, err := GetRegistryFromImageName(dockerImage)
 	if err != nil {
-		return fmt.Errorf("get registry from image name: %w", err)
+		return false, fmt.Errorf("get registry from image name: %w", err)
 	}
 
 	dockerCredentials, err := docker.GetAuthConfig(host)
-	if err != nil {
-		return fmt.Errorf("load docker credentials: %w", err)
-	}
-	if dockerCredentials == nil || dockerCredentials.Username == "" || dockerCredentials.Secret == "" {
-		return fmt.Errorf("no docker credentials found - please login to your registry: %s", dockerImage)
+	if err != nil || dockerCredentials == nil || dockerCredentials.Username == "" || dockerCredentials.Secret == "" {
+		k.Log.Debugf("Couldn't retrieve credentials for registry: %s", host)
+		return false, nil
 	}
 
 	if k.secretExists(ctx, pullSecretName) {
 		k.Log.Debugf("Pull secret '%s' already exists. Recreating...", pullSecretName)
 		err := k.DeletePullSecret(ctx, pullSecretName)
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	err = k.createPullSecret(ctx, pullSecretName, dockerCredentials)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	k.Log.Infof("Pull secret '%s' created", pullSecretName)
-	return nil
+	return true, nil
 }
 
 func (k *KubernetesDriver) DeletePullSecret(
