@@ -49,6 +49,10 @@ func (k *KubernetesDriver) EnsurePullSecret(
 func (k *KubernetesDriver) DeletePullSecret(
 	ctx context.Context,
 	pullSecretName string) error {
+	if !k.secretExists(ctx, pullSecretName) {
+		return nil
+	}
+
 	args := []string{
 		"delete",
 		"secret",
