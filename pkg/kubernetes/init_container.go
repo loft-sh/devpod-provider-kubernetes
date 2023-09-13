@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (k *kubernetesDriver) getInitContainer(options *driver.RunOptions) ([]corev1.Container, error) {
+func (k *KubernetesDriver) getInitContainer(options *driver.RunOptions) ([]corev1.Container, error) {
 	commands := []string{}
 
 	// find the volume type mounts

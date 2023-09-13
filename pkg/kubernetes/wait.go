@@ -24,7 +24,7 @@ var CriticalStatus = map[string]bool{
 	"InvalidImageName":           true,
 }
 
-func (k *kubernetesDriver) waitPodRunning(ctx context.Context, id string) (*corev1.Pod, error) {
+func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*corev1.Pod, error) {
 	nextMessage := time.Now().Add(time.Second * 5)
 
 	var pod *corev1.Pod
@@ -133,7 +133,7 @@ func (k *kubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 	return pod, err
 }
 
-func (k *kubernetesDriver) getPod(ctx context.Context, id string) (*corev1.Pod, error) {
+func (k *KubernetesDriver) getPod(ctx context.Context, id string) (*corev1.Pod, error) {
 	// try to find pod
 	out, err := k.buildCmd(ctx, []string{"get", "pod", id, "--ignore-not-found", "-o", "json"}).Output()
 	if err != nil {

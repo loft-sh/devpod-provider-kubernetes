@@ -12,7 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (k *kubernetesDriver) createServiceAccount(ctx context.Context, id, serviceAccount string) error {
+func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, serviceAccount string) error {
 	// try to find pvc
 	out, err := k.buildCmd(ctx, []string{"get", "serviceaccount", serviceAccount, "--ignore-not-found", "-o", "json"}).Output()
 	if err != nil {

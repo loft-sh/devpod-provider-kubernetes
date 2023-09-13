@@ -10,7 +10,7 @@ import (
 	"github.com/loft-sh/devpod/pkg/random"
 )
 
-func (k *kubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId string) (string, error) {
+func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId string) (string, error) {
 	workspaceId = getID(workspaceId)
 
 	// namespace
@@ -40,7 +40,7 @@ func (k *kubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 	return "amd64", nil
 }
 
-func (k *kubernetesDriver) helperImage() string {
+func (k *KubernetesDriver) helperImage() string {
 	if k.options.HelperImage != "" {
 		return k.options.HelperImage
 	}
