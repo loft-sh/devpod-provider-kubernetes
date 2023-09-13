@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"time"
 
@@ -24,6 +23,7 @@ import (
 var _ = Describe("Pull secrets", func() {
 	var namespace string
 	var client *k8s.Clientset
+	var driver *kubernetes.KubernetesDriver
 
 	createEphemeralNamespace := func() {
 		namespace = fmt.Sprintf("test-ns-%d", rand.Int())
@@ -50,9 +50,19 @@ var _ = Describe("Pull secrets", func() {
 		Expect(err).NotTo(HaveOccurred())
 	}
 
+	prepareK8sDriver := func() *kubernetes.KubernetesDriver {
+		options := options2.Options{
+			KubernetesNamespace: namespace,
+		}
+		driver := kubernetes.NewKubernetesDriver(
+			&options, log.Default.ErrorStreamOnly()).(*kubernetes.KubernetesDriver)
+		return driver
+	}
+
 	BeforeEach(func() {
 		setUpK8sClient()
 		createEphemeralNamespace()
+		driver = prepareK8sDriver()
 	})
 
 	AfterEach(func() {
@@ -63,34 +73,72 @@ var _ = Describe("Pull secrets", func() {
 	It("should create pull secret and make pod use it", func() {
 		By("Login to private container registry")
 
-		pullSecretName := "test-pull-secret"
-
-		dockerUsername := os.Getenv("DOCKER_USERNAME")
-		dockerPassword := os.Getenv("DOCKER_PASSWORD")
-		containerRegistry := os.Getenv("CONTAINER_REGISTRY")
-		if dockerUsername == "" || dockerPassword == "" {
-			Skip("DOCKER_USERNAME and/or DOCKER_PASSWORD are not set")
+		registry, err := RegistryFromEnv()
+		if err != nil {
+			Skip(err.Error())
 		}
 
-		imageName := imageName(dockerUsername, containerRegistry)
+		pullSecretName := "test-pull-secret"
+		imageName := registry.ImageName("test-image")
 
-		dockerLogin(dockerUsername, dockerPassword, containerRegistry)
+		registry.Login()
 		dockerBuild(imageName, "pullsecrets/")
-		dockerPush(imageName)
+		registry.Push(imageName)
 
 		By("Create pull secret")
 
-		options := options2.Options{
-			KubernetesNamespace: namespace,
-		}
-		driver := kubernetes.NewKubernetesDriver(
-			&options, log.Default.ErrorStreamOnly()).(*kubernetes.KubernetesDriver)
-
-		err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
 
 		By("Create pod with the image from the private registry")
 		createPod(namespace, imageName, pullSecretName, client)
+	})
+
+	It("should delete created pull secret if called DeletePullSecret()", func() {
+		registry, err := RegistryFromEnv()
+		if err != nil {
+			Skip(err.Error())
+		}
+
+		pullSecretName := "test-pull-secret"
+		imageName := registry.ImageName("test-image")
+
+		registry.Login()
+
+		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		err = driver.DeletePullSecret(context.TODO(), pullSecretName)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
+		Expect(err).To(HaveOccurred())
+	})
+
+	It("should recreate pull secret if it exists", func() {
+		registry, err := RegistryFromEnv()
+		if err != nil {
+			Skip(err.Error())
+		}
+
+		pullSecretName := "test-pull-secret"
+		imageName := registry.ImageName("test-image")
+
+		registry.Login()
+		dockerBuild(imageName, "pullsecrets/")
+		registry.Push(imageName)
+
+		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		Expect(err).NotTo(HaveOccurred())
 	})
 })
 
@@ -138,51 +186,10 @@ func createPod(namespace, image, pullSecretName string, client *k8s.Clientset) {
 	}, time.Minute*1, time.Second*5).Should(Or(Equal(v1.PodRunning), Equal(v1.PodSucceeded)))
 }
 
-func imageName(dockerUsername, containerRegistry string) string {
-	if containerRegistry != "" {
-		return path.Join(containerRegistry, "test-image")
-	}
-	return path.Join(dockerUsername, "test-image")
-
-}
-
 func dockerBuild(image, dockerfileDirectory string) {
 	cmd := exec.Command("docker", "build", "-t", image, dockerfileDirectory)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Sprintf("failed to build image: %v", err))
-	}
-}
-
-func dockerPush(image string) {
-	cmd := exec.Command("docker", "push", image)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Sprintf("failed to push image: %v, output: %s", err, output))
-	}
-}
-
-func dockerLogin(username, password, server string) {
-	cmd := exec.Command(
-		"docker",
-		"login",
-		server,
-		"--username", username,
-		"--password", password,
-	)
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		panic(fmt.Sprintf("failed to get stdin pipe: %v", err))
-	}
-
-	go func() {
-		defer stdin.Close()
-		_, _ = stdin.Write([]byte(password))
-	}()
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Sprintf("failed to login to Docker: %v, output: %s", err, output))
 	}
 }
