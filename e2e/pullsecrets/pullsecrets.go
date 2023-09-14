@@ -24,6 +24,7 @@ var _ = Describe("Pull secrets", func() {
 	var namespace string
 	var client *k8s.Clientset
 	var driver *kubernetes.KubernetesDriver
+	const DockerfileDirectory = "pullsecrets/testdata/"
 
 	createEphemeralNamespace := func() {
 		namespace = fmt.Sprintf("test-ns-%d", rand.Int())
@@ -82,7 +83,7 @@ var _ = Describe("Pull secrets", func() {
 		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
-		dockerBuild(imageName, "pullsecrets/")
+		dockerBuild(imageName, DockerfileDirectory)
 		registry.Push(imageName)
 
 		By("Create pull secret")
@@ -134,7 +135,7 @@ var _ = Describe("Pull secrets", func() {
 		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
-		dockerBuild(imageName, "pullsecrets/")
+		dockerBuild(imageName, DockerfileDirectory)
 		registry.Push(imageName)
 
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
@@ -165,7 +166,7 @@ var _ = Describe("Pull secrets", func() {
 		imageName := registry.ImageName("public-test-image")
 
 		registry.Login()
-		dockerBuild(imageName, "pullsecrets/")
+		dockerBuild(imageName, DockerfileDirectory)
 		registry.Push(imageName)
 
 		// we should be able to push image without pull secret
