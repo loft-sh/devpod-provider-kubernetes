@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	perrors "github.com/pkg/errors"
 	k8sv1 "k8s.io/api/core/v1"
@@ -38,7 +39,6 @@ func PreparePullSecretData(registryURL, authToken, email string) (string, error)
 	}
 
 	return pullSecretData, nil
-
 }
 
 func newDockerConfigEntry(authToken, email string) DockerConfigEntry {
@@ -55,4 +55,29 @@ func toPullSecretData(dockerConfig *DockerConfigJSON) (string, error) {
 	}
 
 	return k8sv1.DockerConfigJsonKey + "=" + string(data), nil
+}
+
+func DecodeAuthTokenFromPullSecret(secret k8sv1.Secret, host string) (string, error) {
+	dockerConfigBytes, ok := secret.Data[k8sv1.DockerConfigJsonKey]
+	if !ok {
+		return "", fmt.Errorf("could not find %s in secret data", k8sv1.DockerConfigJsonKey)
+	}
+
+	var dockerConfig DockerConfigJSON
+	err := json.Unmarshal(dockerConfigBytes, &dockerConfig)
+	if err != nil {
+		return "", perrors.Wrap(err, "unmarshal docker config")
+	}
+
+	auth, ok := dockerConfig.Auths[host]
+	if !ok {
+		return "", fmt.Errorf("no auth found for host: %s", host)
+	}
+
+	decodedAuthToken, err := base64.StdEncoding.DecodeString(auth.Auth)
+	if err != nil {
+		return "", perrors.Wrap(err, "decode auth token")
+	}
+
+	return string(decodedAuthToken), nil
 }

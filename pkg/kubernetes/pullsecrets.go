@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/loft-sh/devpod-provider-kubernetes/pkg/docker"
@@ -80,6 +81,32 @@ func (k *KubernetesDriver) secretExists(
 		return false
 	}
 	return true
+}
+
+func (k *KubernetesDriver) ReadSecretContents(
+	ctx context.Context,
+	pullSecretName string,
+	host string,
+) (string, error) {
+	args := []string{
+		"get",
+		"secret",
+		pullSecretName,
+		"-o", "json",
+	}
+
+	out, err := k.buildCmd(ctx, args).CombinedOutput()
+	if err != nil {
+		return "", perrors.Wrapf(err, "delete pull secret: %s", string(out))
+	}
+
+	var secret k8sv1.Secret
+	err = json.Unmarshal(out, &secret)
+	if err != nil {
+		return "", perrors.Wrap(err, "unmarshal secret")
+	}
+
+	return DecodeAuthTokenFromPullSecret(secret, host)
 }
 
 func (k *KubernetesDriver) createPullSecret(

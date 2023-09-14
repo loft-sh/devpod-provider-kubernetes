@@ -183,6 +183,33 @@ var _ = Describe("Pull secrets", func() {
 		// create pod without pull secret
 		createPod(client, namespace, imageName)
 	})
+
+	It("should be able to read pull secret", func() {
+		registry, err := RegistryFromEnv()
+		if err != nil {
+			Skip(err.Error())
+		}
+		pullSecretName := "test-pull-secret"
+		imageName := registry.ImageName("public-test-image")
+		registryName, err := kubernetes.GetRegistryFromImageName(imageName)
+		if err != nil {
+			panic(err)
+		}
+
+		registry.Login()
+		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(created).To(BeTrue())
+
+		authToken, err := driver.ReadSecretContents(context.TODO(), pullSecretName, registryName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(authToken).To(SatisfyAny(
+			BeEquivalentTo(registry.Password),
+			BeEquivalentTo(fmt.Sprintf("%s:%s", registry.Username, registry.Password)),
+		))
+
+		registry.Logout()
+	})
 })
 
 func getKubeConfigPath() string {

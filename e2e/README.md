@@ -4,6 +4,8 @@ Make sure you have ginkgo installed on your local machine:
 ```sh
 go get github.com/onsi/ginkgo/ginkgo
 ```
+Make sure you have docker installed and running on your local machine.
+As well as you have access to kubernetes cluster via `kubectl` command.
 
 #### Run all e2e tests
 ```sh
