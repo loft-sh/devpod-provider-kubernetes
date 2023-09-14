@@ -33,6 +33,7 @@ options:
   DISK_SIZE:
     description: The default size for the persistent volume to use.
     default: 10Gi
+    global: true
   KUBERNETES_CONTEXT:
     description: The kubernetes context to use. E.g. my-kube-context
   KUBERNETES_CONFIG:
