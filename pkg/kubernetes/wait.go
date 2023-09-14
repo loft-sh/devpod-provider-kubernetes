@@ -28,7 +28,7 @@ func (k *kubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 	nextMessage := time.Now().Add(time.Second * 5)
 
 	var pod *corev1.Pod
-	err := wait.PollImmediate(time.Second, time.Minute*5, func() (bool, error) {
+	err := wait.PollImmediate(time.Second, time.Minute*10, func() (bool, error) {
 		var err error
 		pod, err = k.getPod(ctx, id)
 		now := time.Now()
