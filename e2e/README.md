@@ -31,3 +31,32 @@ ginkgo -focus="should create pull secret and make pod use it"
 ginkgo -focus="should load profile cached and uncached"
 ```
 
+#### Debugging e2e test
+If you need to debug the test, make sure you have `dlv` installed.
+Then go to the test folder and run the following command:
+```sh
+DOCKER_USERNAME=<username> DOCKER_PASSWORD=<password> dlv test . -focus="should create pull secret and make pod use it"
+```
+Then, when you're inside the debugger, you can set breakpoints:
+```sh
+break <file>:<line>
+# for example:
+break main.go:123
+# or
+break <package>.<function>
+# you can also use alias for break:
+b <package>.<function>
+```
+and continue the test:
+```sh
+continue
+# or
+c
+```
+and in the end, exit the debugger:
+```sh
+q
+# or
+quit
+```
+For more information about `dlv` commands, please refer to [dlv documentation](https://github.com/go-delve/delve/tree/master/Documentation/cli)
