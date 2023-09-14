@@ -125,7 +125,7 @@ var _ = Describe("Pull secrets", func() {
 		registry.Logout()
 	})
 
-	It("should recreate pull secret if it exists", func() {
+	It("shouldn't recreate pull secret if it exists and haven't changed", func() {
 		registry, err := RegistryFromEnv()
 		if err != nil {
 			Skip(err.Error())
@@ -145,8 +145,9 @@ var _ = Describe("Pull secrets", func() {
 		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-		_, err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
+		created, err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
+		Expect(created).To(BeFalse())
 
 		registry.Logout()
 	})

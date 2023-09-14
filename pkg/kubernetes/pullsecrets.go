@@ -29,7 +29,12 @@ func (k *KubernetesDriver) EnsurePullSecret(
 	}
 
 	if k.secretExists(ctx, pullSecretName) {
-		k.Log.Debugf("Pull secret '%s' already exists. Recreating...", pullSecretName)
+		if !k.shouldRecreateSecret(ctx, dockerCredentials, pullSecretName, host) {
+			k.Log.Debugf("Pull secret '%s' already exists and is up to date", pullSecretName)
+			return false, nil
+		}
+
+		k.Log.Debugf("Pull secret '%s' already exists, but is outdated. Recreating...", pullSecretName)
 		err := k.DeletePullSecret(ctx, pullSecretName)
 		if err != nil {
 			return false, err
@@ -43,6 +48,14 @@ func (k *KubernetesDriver) EnsurePullSecret(
 
 	k.Log.Infof("Pull secret '%s' created", pullSecretName)
 	return true, nil
+}
+
+func (k *KubernetesDriver) shouldRecreateSecret(ctx context.Context, dockerCredentials *docker.Credentials, pullSecretName, host string) bool {
+	existingAuthToken, err := k.ReadSecretContents(ctx, pullSecretName, host)
+	if err != nil {
+		return true
+	}
+	return existingAuthToken != dockerCredentials.AuthToken()
 }
 
 func (k *KubernetesDriver) DeletePullSecret(
@@ -115,11 +128,7 @@ func (k *KubernetesDriver) createPullSecret(
 	dockerCredentials *docker.Credentials,
 ) error {
 
-	authToken := dockerCredentials.Secret
-	if dockerCredentials.Username != "" {
-		authToken = dockerCredentials.Username + ":" + authToken
-	}
-
+	authToken := dockerCredentials.AuthToken()
 	email := "noreply@loft.sh"
 
 	encodedSecretData, err := PreparePullSecretData(dockerCredentials.ServerURL, authToken, email)

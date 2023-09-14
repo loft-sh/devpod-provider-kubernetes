@@ -19,6 +19,13 @@ type Credentials struct {
 	Secret    string
 }
 
+func (c *Credentials) AuthToken() string {
+	if c.Username != "" {
+		return c.Username + ":" + c.Secret
+	}
+	return c.Secret
+}
+
 const dockerFileFolder = ".docker"
 const AzureContainerRegistryUsername = "00000000-0000-0000-0000-000000000000"
 
