@@ -49,7 +49,7 @@ jobs:
       working-directory: ./e2e
       run: |
         KUBECONFIG=/home/runner/.kube/config \
-        DOCKER_USERNAME=${{ github.actor }} \
+        DOCKER_USERNAME=loft-sh \
         DOCKER_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
         CONTAINER_REGISTRY=ghcr.io \
         go test -v -ginkgo.v -timeout 3600s
