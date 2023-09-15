@@ -32,7 +32,7 @@ func NewKubernetesDriver(options *options.Options, log log.Logger) driver.Driver
 	if options.KubernetesContext != "" {
 		log.Debugf("Use Kubernetes Context '%s'", options.KubernetesContext)
 	}
-	return &kubernetesDriver{
+	return &KubernetesDriver{
 		kubectl: kubectl,
 
 		kubeConfig: options.KubernetesConfig,
@@ -44,7 +44,7 @@ func NewKubernetesDriver(options *options.Options, log log.Logger) driver.Driver
 	}
 }
 
-type kubernetesDriver struct {
+type KubernetesDriver struct {
 	kubectl string
 
 	kubeConfig string
@@ -55,7 +55,7 @@ type kubernetesDriver struct {
 	Log     log.Logger
 }
 
-func (k *kubernetesDriver) FindDevContainer(ctx context.Context, workspaceId string) (*config.ContainerDetails, error) {
+func (k *KubernetesDriver) FindDevContainer(ctx context.Context, workspaceId string) (*config.ContainerDetails, error) {
 	workspaceId = getID(workspaceId)
 
 	pvc, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
@@ -66,7 +66,7 @@ func (k *kubernetesDriver) FindDevContainer(ctx context.Context, workspaceId str
 	return k.infoFromObject(ctx, pvc, containerInfo)
 }
 
-func (k *kubernetesDriver) getDevContainerPvc(ctx context.Context, id string) (*corev1.PersistentVolumeClaim, *DevContainerInfo, error) {
+func (k *KubernetesDriver) getDevContainerPvc(ctx context.Context, id string) (*corev1.PersistentVolumeClaim, *DevContainerInfo, error) {
 	// try to find pvc
 	out, err := k.buildCmd(ctx, []string{"get", "pvc", id, "--ignore-not-found", "-o", "json"}).Output()
 	if err != nil {
@@ -94,7 +94,7 @@ func (k *kubernetesDriver) getDevContainerPvc(ctx context.Context, id string) (*
 	return pvc, containerInfo, nil
 }
 
-func (k *kubernetesDriver) infoFromObject(ctx context.Context, pvc *corev1.PersistentVolumeClaim, containerInfo *DevContainerInfo) (*config.ContainerDetails, error) {
+func (k *KubernetesDriver) infoFromObject(ctx context.Context, pvc *corev1.PersistentVolumeClaim, containerInfo *DevContainerInfo) (*config.ContainerDetails, error) {
 	if pvc == nil {
 		return nil, nil
 	}
@@ -131,7 +131,7 @@ func (k *kubernetesDriver) infoFromObject(ctx context.Context, pvc *corev1.Persi
 	}, nil
 }
 
-func (k *kubernetesDriver) StopDevContainer(ctx context.Context, workspaceId string) error {
+func (k *KubernetesDriver) StopDevContainer(ctx context.Context, workspaceId string) error {
 	workspaceId = getID(workspaceId)
 
 	// delete pod
@@ -143,7 +143,7 @@ func (k *kubernetesDriver) StopDevContainer(ctx context.Context, workspaceId str
 	return nil
 }
 
-func (k *kubernetesDriver) DeleteDevContainer(ctx context.Context, workspaceId string) error {
+func (k *KubernetesDriver) DeleteDevContainer(ctx context.Context, workspaceId string) error {
 	workspaceId = getID(workspaceId)
 
 	// delete pod
@@ -169,10 +169,19 @@ func (k *kubernetesDriver) DeleteDevContainer(ctx context.Context, workspaceId s
 		}
 	}
 
+	// delete pull secret
+	if k.options.KubernetesPullSecretsEnabled != "" {
+		k.Log.Infof("Delete pull secret '%s'...", workspaceId)
+		err := k.DeletePullSecret(ctx, getPullSecretsName(workspaceId))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-func (k *kubernetesDriver) deletePod(ctx context.Context, podName string) error {
+func (k *KubernetesDriver) deletePod(ctx context.Context, podName string) error {
 	out, err := k.buildCmd(ctx, []string{"delete", "po", podName, "--ignore-not-found", "--grace-period=10"}).CombinedOutput()
 	if err != nil {
 		return perrors.Wrapf(err, "delete pod: %s", string(out))
@@ -181,7 +190,7 @@ func (k *kubernetesDriver) deletePod(ctx context.Context, podName string) error 
 	return nil
 }
 
-func (k *kubernetesDriver) CommandDevContainer(ctx context.Context, workspaceId, user, command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+func (k *KubernetesDriver) CommandDevContainer(ctx context.Context, workspaceId, user, command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	workspaceId = getID(workspaceId)
 
 	args := []string{"exec", "-c", "devpod"}
@@ -198,7 +207,7 @@ func (k *kubernetesDriver) CommandDevContainer(ctx context.Context, workspaceId,
 	return k.runCommand(ctx, args, stdin, stdout, stderr)
 }
 
-func (k *kubernetesDriver) buildCmd(ctx context.Context, args []string) *exec.Cmd {
+func (k *KubernetesDriver) buildCmd(ctx context.Context, args []string) *exec.Cmd {
 	newArgs := []string{}
 	if k.namespace != "" {
 		newArgs = append(newArgs, "--namespace", k.namespace)
@@ -214,11 +223,11 @@ func (k *kubernetesDriver) buildCmd(ctx context.Context, args []string) *exec.Cm
 	return exec.CommandContext(ctx, k.kubectl, newArgs...)
 }
 
-func (k *kubernetesDriver) runCommand(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+func (k *KubernetesDriver) runCommand(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	return k.runCommandWithDir(ctx, "", args, stdin, stdout, stderr)
 }
 
-func (k *kubernetesDriver) runCommandWithDir(ctx context.Context, dir string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+func (k *KubernetesDriver) runCommandWithDir(ctx context.Context, dir string, args []string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
 	cmd := k.buildCmd(ctx, args)
 	cmd.Dir = dir
 	cmd.Stdin = stdin

@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (k *kubernetesDriver) createPersistentVolumeClaim(
+func (k *KubernetesDriver) createPersistentVolumeClaim(
 	ctx context.Context,
 	id string,
 	options *driver.RunOptions,
@@ -33,7 +33,7 @@ func (k *kubernetesDriver) createPersistentVolumeClaim(
 	return nil
 }
 
-func (k *kubernetesDriver) buildPersistentVolumeClaim(
+func (k *KubernetesDriver) buildPersistentVolumeClaim(
 	id string,
 	options *driver.RunOptions,
 ) (string, error) {
@@ -102,7 +102,7 @@ func (k *kubernetesDriver) buildPersistentVolumeClaim(
 	return string(raw), nil
 }
 
-func (k *kubernetesDriver) getDevContainerInformation(
+func (k *KubernetesDriver) getDevContainerInformation(
 	id string,
 	options *driver.RunOptions,
 ) (string, error) {

@@ -28,7 +28,7 @@ type DevContainerInfo struct {
 	Options     *driver.RunOptions
 }
 
-func (k *kubernetesDriver) RunDevContainer(
+func (k *KubernetesDriver) RunDevContainer(
 	ctx context.Context,
 	workspaceId string,
 	options *driver.RunOptions,
@@ -69,7 +69,7 @@ func (k *kubernetesDriver) RunDevContainer(
 	return nil
 }
 
-func (k *kubernetesDriver) runContainer(
+func (k *KubernetesDriver) runContainer(
 	ctx context.Context,
 	id string,
 	options *driver.RunOptions,
@@ -164,6 +164,15 @@ func (k *kubernetesDriver) runContainer(
 	// parse resources
 	resources := parseResources(k.options.Resources, k.Log)
 
+	// ensure pull secrets
+	pullSecretsCreated := false
+	if k.options.KubernetesPullSecretsEnabled == "true" {
+		pullSecretsCreated, err = k.EnsurePullSecret(ctx, getPullSecretsName(id), options.Image)
+		if err != nil {
+			return err
+		}
+	}
+
 	// create the pod manifest
 	pod.ObjectMeta.Name = id
 	pod.ObjectMeta.Labels = labels
@@ -174,6 +183,10 @@ func (k *kubernetesDriver) runContainer(
 	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged)
 	pod.Spec.Volumes = getVolumes(pod, id)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
+
+	if k.options.KubernetesPullSecretsEnabled == "true" && pullSecretsCreated {
+		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: getPullSecretsName(id)}}
+	}
 
 	// marshal the pod
 	podRaw, err := json.Marshal(pod)
@@ -328,7 +341,7 @@ func getNodeSelector(pod *corev1.Pod, rawNodeSelector string) (map[string]string
 	return nodeSelector, nil
 }
 
-func (k *kubernetesDriver) StartDevContainer(ctx context.Context, workspaceId string) error {
+func (k *KubernetesDriver) StartDevContainer(ctx context.Context, workspaceId string) error {
 	workspaceId = getID(workspaceId)
 	_, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
 	if err != nil {
@@ -347,4 +360,8 @@ func (k *kubernetesDriver) StartDevContainer(ctx context.Context, workspaceId st
 
 func getID(workspaceID string) string {
 	return "devpod-" + workspaceID
+}
+
+func getPullSecretsName(workspaceID string) string {
+	return fmt.Sprintf("devpod-pull-secret-%s", workspaceID)
 }

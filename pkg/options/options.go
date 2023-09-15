@@ -10,9 +10,10 @@ type Options struct {
 
 	DiskSize string
 
-	KubernetesContext   string
-	KubernetesConfig    string
-	KubernetesNamespace string
+	KubernetesContext            string
+	KubernetesConfig             string
+	KubernetesNamespace          string
+	KubernetesPullSecretsEnabled string
 
 	CreateNamespace string
 	ClusterRole     string
@@ -47,6 +48,7 @@ func FromEnv() (*Options, error) {
 	retOptions.KubernetesContext = os.Getenv("KUBERNETES_CONTEXT")
 	retOptions.KubernetesConfig = os.Getenv("KUBERNETES_CONFIG")
 	retOptions.KubernetesNamespace = os.Getenv("KUBERNETES_NAMESPACE")
+	retOptions.KubernetesPullSecretsEnabled = os.Getenv("KUBERNETES_PULL_SECRETS_ENABLED")
 	retOptions.CreateNamespace = os.Getenv("CREATE_NAMESPACE")
 	retOptions.ClusterRole = os.Getenv("CLUSTER_ROLE")
 	retOptions.ServiceAccount = os.Getenv("SERVICE_ACCOUNT")

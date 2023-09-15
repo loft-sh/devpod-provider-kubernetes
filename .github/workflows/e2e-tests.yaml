@@ -1,0 +1,55 @@
+name: E2E tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**.go"
+      - "!**_test.go" # exclude test files to ignore unit test changes
+      - "e2e/**_test.go" # include test files in e2e again
+      - ".github/workflows/e2e-tests.yaml"
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+env:
+    GO111MODULE: on
+    GOFLAGS: -mod=vendor
+
+jobs:
+  test-e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.21
+
+    - name: Set up kind k8s cluster
+      uses: engineerd/setup-kind@v0.5.0
+      with:
+        version: "v0.20.0"
+        image: kindest/node:v1.27.3
+
+    - name: Testing kind cluster set-up
+      run: |
+        set -x
+        kubectl cluster-info
+        kubectl get pods -n kube-system -v 10
+        echo "kubectl config current-context:" $(kubectl config current-context)
+        echo "KUBECONFIG env var:" ${KUBECONFIG}
+
+    - name: E2E test
+      working-directory: ./e2e
+      run: |
+        KUBECONFIG=/home/runner/.kube/config \
+        DOCKER_USERNAME=loft-sh \
+        DOCKER_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
+        CONTAINER_REGISTRY=ghcr.io \
+        go test -v -ginkgo.v -timeout 3600s
