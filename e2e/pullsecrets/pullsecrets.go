@@ -83,6 +83,7 @@ var _ = Describe("Pull secrets", func() {
 		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
+		defer registry.Logout()
 		dockerBuild(imageName, DockerfileDirectory)
 		registry.Push(imageName)
 
@@ -94,8 +95,6 @@ var _ = Describe("Pull secrets", func() {
 
 		By("Create pod with the image from the private registry")
 		createPod(client, namespace, imageName, pullSecretName)
-
-		registry.Logout()
 	})
 
 	It("should delete created pull secret if called DeletePullSecret()", func() {
@@ -108,6 +107,7 @@ var _ = Describe("Pull secrets", func() {
 		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
+		defer registry.Logout()
 
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
@@ -121,8 +121,6 @@ var _ = Describe("Pull secrets", func() {
 
 		_, err = client.CoreV1().Secrets(namespace).Get(context.TODO(), pullSecretName, metav1.GetOptions{})
 		Expect(err).To(HaveOccurred())
-
-		registry.Logout()
 	})
 
 	It("shouldn't recreate pull secret if it exists and haven't changed", func() {
@@ -135,6 +133,8 @@ var _ = Describe("Pull secrets", func() {
 		imageName := registry.ImageName("private-test-image")
 
 		registry.Login()
+		defer registry.Logout()
+
 		dockerBuild(imageName, DockerfileDirectory)
 		registry.Push(imageName)
 
@@ -148,8 +148,6 @@ var _ = Describe("Pull secrets", func() {
 		created, err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(created).To(BeFalse())
-
-		registry.Logout()
 	})
 
 	// NOTE: make sure the image is public
@@ -198,6 +196,7 @@ var _ = Describe("Pull secrets", func() {
 		}
 
 		registry.Login()
+		defer registry.Logout()
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(created).To(BeTrue())
@@ -208,8 +207,6 @@ var _ = Describe("Pull secrets", func() {
 			BeEquivalentTo(registry.Password),
 			BeEquivalentTo(fmt.Sprintf("%s:%s", registry.Username, registry.Password)),
 		))
-
-		registry.Logout()
 	})
 })
 
