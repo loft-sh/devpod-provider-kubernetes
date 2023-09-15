@@ -45,14 +45,11 @@ jobs:
         echo "kubectl config current-context:" $(kubectl config current-context)
         echo "KUBECONFIG env var:" ${KUBECONFIG}
 
-    - name: Login to Github Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-
     - name: E2E test
       working-directory: ./e2e
       run: |
-        KUBECONFIG=/home/runner/.kube/config go test -v -ginkgo.v -timeout 3600s
+        KUBECONFIG=/home/runner/.kube/config \
+        DOCKER_USERNAME=${{ github.actor }} \
+        DOCKER_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
+        CONTAINER_REGISTRY=ghcr.io \
+        go test -v -ginkgo.v -timeout 3600s
