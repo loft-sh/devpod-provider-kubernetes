@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -24,7 +23,6 @@ var _ = Describe("Pull secrets", func() {
 	var namespace string
 	var client *k8s.Clientset
 	var driver *kubernetes.KubernetesDriver
-	const DockerfileDirectory = "pullsecrets/testdata/"
 
 	createEphemeralNamespace := func() {
 		namespace = fmt.Sprintf("test-ns-%d", rand.Int())
@@ -84,8 +82,6 @@ var _ = Describe("Pull secrets", func() {
 
 		registry.Login()
 		defer registry.Logout()
-		dockerBuild(imageName, DockerfileDirectory)
-		registry.Push(imageName)
 
 		By("Create pull secret")
 
@@ -135,9 +131,6 @@ var _ = Describe("Pull secrets", func() {
 		registry.Login()
 		defer registry.Logout()
 
-		dockerBuild(imageName, DockerfileDirectory)
-		registry.Push(imageName)
-
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(created).To(BeTrue())
@@ -166,13 +159,6 @@ var _ = Describe("Pull secrets", func() {
 
 		pullSecretName := "test-pull-secret"
 		imageName := registry.ImageName("public-test-image")
-
-		registry.Login()
-		dockerBuild(imageName, DockerfileDirectory)
-		registry.Push(imageName)
-
-		// we should be able to push image without pull secret
-		registry.Logout()
 
 		// there shouldn't be any error, but the pull secret shouldn't be created
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
@@ -258,12 +244,4 @@ func createPod(client *k8s.Clientset, namespace, image string, pullSecretName ..
 		Expect(err).NotTo(HaveOccurred())
 		return pod.Status.Phase
 	}, time.Minute*1, time.Second*5).Should(Or(Equal(v1.PodRunning), Equal(v1.PodSucceeded)))
-}
-
-func dockerBuild(image, dockerfileDirectory string) {
-	cmd := exec.Command("docker", "build", "-t", image, dockerfileDirectory)
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Sprintf("failed to build image: %v", err))
-	}
 }

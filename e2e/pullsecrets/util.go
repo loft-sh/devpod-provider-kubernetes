@@ -74,20 +74,12 @@ func (r *Registry) Logout() {
 	}
 }
 
-func (r *Registry) Push(image string) {
-	cmd := exec.Command("docker", "push", image)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(fmt.Sprintf("failed to push image: %v, output: %s", err, output))
-	}
-}
-
 func (r *Registry) ImageName(basename string) string {
 	if r.isAWSContainerRegistry() {
 		return path.Join(r.Server, basename)
 	}
 	if r.isGithubContainerRegistry() {
-		return path.Join(r.Server, r.Username, basename)
+		return path.Join("ghcr.io/loft-sh/devpod-provider-kubernetes/", basename)
 	}
 	if r.isDockerHub() {
 		return path.Join(r.Username, basename)
