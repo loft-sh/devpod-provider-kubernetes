@@ -33,6 +33,14 @@ func (r *Registry) isAWSContainerRegistry() bool {
 	return strings.Contains(r.Server, "amazonaws.com")
 }
 
+func (r *Registry) isGithubContainerRegistry() bool {
+	return strings.Contains(r.Server, "ghcr.io")
+}
+
+func (r *Registry) isDockerHub() bool {
+	return r.Server == "" || r.Server == "docker.io"
+}
+
 func (r *Registry) Login() {
 	cmd := exec.Command(
 		"docker",
@@ -75,8 +83,15 @@ func (r *Registry) Push(image string) {
 }
 
 func (r *Registry) ImageName(basename string) string {
-	if r.Server != "" {
+	if r.isAWSContainerRegistry() {
 		return path.Join(r.Server, basename)
 	}
-	return path.Join(r.Username, basename)
+	if r.isGithubContainerRegistry() {
+		return path.Join(r.Server, r.Username, basename)
+	}
+	if r.isDockerHub() {
+		return path.Join(r.Username, basename)
+	}
+
+	panic(fmt.Sprintf("unsupported registry: %s", r.Server))
 }
