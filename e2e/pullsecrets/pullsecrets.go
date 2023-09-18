@@ -23,62 +23,28 @@ var _ = Describe("Pull secrets", func() {
 	var namespace string
 	var client *k8s.Clientset
 	var driver *kubernetes.KubernetesDriver
-
-	createEphemeralNamespace := func() {
-		namespace = fmt.Sprintf("test-ns-%d", rand.Int())
-		_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespace,
-			},
-		}, metav1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	deleteNamespace := func() {
-		err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	setUpK8sClient := func() {
-		kubeConfig := getKubeConfigPath()
-
-		config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-		Expect(err).NotTo(HaveOccurred())
-
-		client, err = k8s.NewForConfig(config)
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	prepareK8sDriver := func() *kubernetes.KubernetesDriver {
-		options := options2.Options{
-			KubernetesNamespace: namespace,
-		}
-		driver := kubernetes.NewKubernetesDriver(
-			&options, log.Default.ErrorStreamOnly()).(*kubernetes.KubernetesDriver)
-		return driver
-	}
+	var registry ContainerRegistry
+	const pullSecretName = "test-pull-secret"
 
 	BeforeEach(func() {
-		setUpK8sClient()
-		createEphemeralNamespace()
-		driver = prepareK8sDriver()
-	})
+		client = setUpK8sClient()
+		namespace = createEphemeralNamespace(client)
+		driver = prepareK8sDriver(namespace)
 
-	AfterEach(func() {
-		deleteNamespace()
-	})
-
-	// NOTE: It was tested with Docker Hub and AWS ECR, make sure image is private
-	It("should create pull secret and make pod use it", func() {
-		By("Login to private container registry")
-
-		registry, err := RegistryFromEnv()
+		var err error
+		registry, err = RegistryFromEnv()
 		if err != nil {
 			Skip(err.Error())
 		}
+	})
 
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("private-test-image")
+	AfterEach(func() {
+		deleteNamespace(client, namespace)
+	})
+
+	It("should create pull secret and make pod use it", func() {
+		By("Login to private container registry")
+		imageName := registry.PrivateImageName()
 
 		registry.Login()
 		defer registry.Logout()
@@ -94,13 +60,7 @@ var _ = Describe("Pull secrets", func() {
 	})
 
 	It("should delete created pull secret if called DeletePullSecret()", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("private-test-image")
+		imageName := registry.PrivateImageName()
 
 		registry.Login()
 		defer registry.Logout()
@@ -120,13 +80,7 @@ var _ = Describe("Pull secrets", func() {
 	})
 
 	It("shouldn't recreate pull secret if it exists and haven't changed", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("private-test-image")
+		imageName := registry.PrivateImageName()
 
 		registry.Login()
 		defer registry.Logout()
@@ -143,22 +97,8 @@ var _ = Describe("Pull secrets", func() {
 		Expect(created).To(BeFalse())
 	})
 
-	// NOTE: make sure the image is public
 	It("should work with public images without pull secret", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		if registry.isAWSContainerRegistry() {
-			Skip("This test doesn't support AWS ECR public images")
-		}
-		if registry.isGithubContainerRegistry() {
-			Skip("This test doesn't support Github Container Registry public images.")
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("public-test-image")
+		imageName := registry.PublicImageName()
 
 		// there shouldn't be any error, but the pull secret shouldn't be created
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
@@ -173,12 +113,7 @@ var _ = Describe("Pull secrets", func() {
 	})
 
 	It("should be able to read pull secret", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("public-test-image")
+		imageName := registry.PublicImageName()
 		registryName, err := kubernetes.GetRegistryFromImageName(imageName)
 		if err != nil {
 			panic(err)
@@ -193,8 +128,8 @@ var _ = Describe("Pull secrets", func() {
 		authToken, err := driver.ReadSecretContents(context.TODO(), pullSecretName, registryName)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(authToken).To(SatisfyAny(
-			BeEquivalentTo(registry.Password),
-			BeEquivalentTo(fmt.Sprintf("%s:%s", registry.Username, registry.Password)),
+			BeEquivalentTo(registry.Password()),
+			BeEquivalentTo(fmt.Sprintf("%s:%s", registry.Username(), registry.Password())),
 		))
 	})
 })
@@ -209,6 +144,45 @@ func getKubeConfigPath() string {
 		panic(fmt.Sprintf("kubeconfig file does not exist at path: %s", kubeConfigPath))
 	}
 	return kubeConfigPath
+}
+
+func setUpK8sClient() *k8s.Clientset {
+	kubeConfig := getKubeConfigPath()
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	k8sClient, err := k8s.NewForConfig(config)
+	Expect(err).NotTo(HaveOccurred())
+
+	return k8sClient
+}
+
+func prepareK8sDriver(namespace string) *kubernetes.KubernetesDriver {
+	options := options2.Options{
+		KubernetesNamespace: namespace,
+	}
+	driver := kubernetes.NewKubernetesDriver(
+		&options, log.Default.ErrorStreamOnly()).(*kubernetes.KubernetesDriver)
+	return driver
+}
+
+func createEphemeralNamespace(client *k8s.Clientset) string {
+	namespace := fmt.Sprintf("test-ns-%d", rand.Int())
+
+	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}, metav1.CreateOptions{})
+
+	Expect(err).NotTo(HaveOccurred())
+	return namespace
+}
+
+func deleteNamespace(client *k8s.Clientset, namespace string) {
+	err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func createPod(client *k8s.Clientset, namespace, image string, pullSecretName ...string) {

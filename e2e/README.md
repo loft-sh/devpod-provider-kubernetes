@@ -25,6 +25,14 @@ DOCKER_USERNAME=<username> DOCKER_PASSWORD=<password> CONTAINER_REGISTRY=<regist
 ginkgo -focus="should create pull secret and make pod use it"
 ```
 
+Please make sure you have a private and public image in the registry you're using.
+For each of the supported container registries (AWS ECR, Docker Hub, Github Registry) 
+there is a class that implements the `ContainerRegistry` interface. You can find them in `e2e/pullsecrets/registry.go`.
+
+If you want to add support for a new container registry, you can implement the `ContainerRegistry` interface.
+If you want to change the image name used for tests you can modify methods `PublicImageName` and `PrivateImageName`
+for the registry you're using.
+
 #### Run a specific e2e test
 ```sh
 # Install ginkgo and run in this folder
