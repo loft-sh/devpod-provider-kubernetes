@@ -24,48 +24,14 @@ var _ = Describe("Pull secrets", func() {
 	var client *k8s.Clientset
 	var driver *kubernetes.KubernetesDriver
 
-	createEphemeralNamespace := func() {
-		namespace = fmt.Sprintf("test-ns-%d", rand.Int())
-		_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespace,
-			},
-		}, metav1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	deleteNamespace := func() {
-		err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	setUpK8sClient := func() {
-		kubeConfig := getKubeConfigPath()
-
-		config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
-		Expect(err).NotTo(HaveOccurred())
-
-		client, err = k8s.NewForConfig(config)
-		Expect(err).NotTo(HaveOccurred())
-	}
-
-	prepareK8sDriver := func() *kubernetes.KubernetesDriver {
-		options := options2.Options{
-			KubernetesNamespace: namespace,
-		}
-		driver := kubernetes.NewKubernetesDriver(
-			&options, log.Default.ErrorStreamOnly()).(*kubernetes.KubernetesDriver)
-		return driver
-	}
-
 	BeforeEach(func() {
-		setUpK8sClient()
-		createEphemeralNamespace()
-		driver = prepareK8sDriver()
+		client = setUpK8sClient()
+		namespace = createEphemeralNamespace(client)
+		driver = prepareK8sDriver(namespace)
 	})
 
 	AfterEach(func() {
-		deleteNamespace()
+		deleteNamespace(client, namespace)
 	})
 
 	// NOTE: It was tested with Docker Hub and AWS ECR, make sure image is private
@@ -209,6 +175,45 @@ func getKubeConfigPath() string {
 		panic(fmt.Sprintf("kubeconfig file does not exist at path: %s", kubeConfigPath))
 	}
 	return kubeConfigPath
+}
+
+func setUpK8sClient() *k8s.Clientset {
+	kubeConfig := getKubeConfigPath()
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeConfig)
+	Expect(err).NotTo(HaveOccurred())
+
+	k8sClient, err := k8s.NewForConfig(config)
+	Expect(err).NotTo(HaveOccurred())
+
+	return k8sClient
+}
+
+func prepareK8sDriver(namespace string) *kubernetes.KubernetesDriver {
+	options := options2.Options{
+		KubernetesNamespace: namespace,
+	}
+	driver := kubernetes.NewKubernetesDriver(
+		&options, log.Default.ErrorStreamOnly()).(*kubernetes.KubernetesDriver)
+	return driver
+}
+
+func createEphemeralNamespace(client *k8s.Clientset) string {
+	namespace := fmt.Sprintf("test-ns-%d", rand.Int())
+
+	_, err := client.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}, metav1.CreateOptions{})
+
+	Expect(err).NotTo(HaveOccurred())
+	return namespace
+}
+
+func deleteNamespace(client *k8s.Clientset, namespace string) {
+	err := client.CoreV1().Namespaces().Delete(context.TODO(), namespace, metav1.DeleteOptions{})
+	Expect(err).NotTo(HaveOccurred())
 }
 
 func createPod(client *k8s.Clientset, namespace, image string, pullSecretName ...string) {
