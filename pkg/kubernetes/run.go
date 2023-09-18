@@ -41,7 +41,7 @@ func (k *KubernetesDriver) RunDevContainer(
 		buf := &bytes.Buffer{}
 		err := k.runCommand(ctx, []string{"create", "ns", k.namespace}, nil, buf, buf)
 		if err != nil {
-			k.Log.Debugf("Error creating namespace: %v", err)
+			k.Log.Debugf("Error creating namespace: %s%v", buf.String(), err)
 		}
 	}
 
