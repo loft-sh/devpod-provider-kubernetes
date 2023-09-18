@@ -50,52 +50,6 @@ func (k *KubernetesDriver) EnsurePullSecret(
 	return true, nil
 }
 
-func (k *KubernetesDriver) shouldRecreateSecret(ctx context.Context, dockerCredentials *docker.Credentials, pullSecretName, host string) bool {
-	existingAuthToken, err := k.ReadSecretContents(ctx, pullSecretName, host)
-	if err != nil {
-		return true
-	}
-	return existingAuthToken != dockerCredentials.AuthToken()
-}
-
-func (k *KubernetesDriver) DeletePullSecret(
-	ctx context.Context,
-	pullSecretName string) error {
-	if !k.secretExists(ctx, pullSecretName) {
-		return nil
-	}
-
-	args := []string{
-		"delete",
-		"secret",
-		pullSecretName,
-	}
-
-	out, err := k.buildCmd(ctx, args).CombinedOutput()
-	if err != nil {
-		return perrors.Wrapf(err, "delete pull secret: %s", string(out))
-	}
-
-	return nil
-}
-
-func (k *KubernetesDriver) secretExists(
-	ctx context.Context,
-	pullSecretName string,
-) bool {
-	args := []string{
-		"get",
-		"secret",
-		pullSecretName,
-	}
-
-	_, err := k.buildCmd(ctx, args).CombinedOutput()
-	if err != nil {
-		return false
-	}
-	return true
-}
-
 func (k *KubernetesDriver) ReadSecretContents(
 	ctx context.Context,
 	pullSecretName string,
@@ -120,6 +74,52 @@ func (k *KubernetesDriver) ReadSecretContents(
 	}
 
 	return DecodeAuthTokenFromPullSecret(secret, host)
+}
+
+func (k *KubernetesDriver) DeletePullSecret(
+	ctx context.Context,
+	pullSecretName string) error {
+	if !k.secretExists(ctx, pullSecretName) {
+		return nil
+	}
+
+	args := []string{
+		"delete",
+		"secret",
+		pullSecretName,
+	}
+
+	out, err := k.buildCmd(ctx, args).CombinedOutput()
+	if err != nil {
+		return perrors.Wrapf(err, "delete pull secret: %s", string(out))
+	}
+
+	return nil
+}
+
+func (k *KubernetesDriver) shouldRecreateSecret(ctx context.Context, dockerCredentials *docker.Credentials, pullSecretName, host string) bool {
+	existingAuthToken, err := k.ReadSecretContents(ctx, pullSecretName, host)
+	if err != nil {
+		return true
+	}
+	return existingAuthToken != dockerCredentials.AuthToken()
+}
+
+func (k *KubernetesDriver) secretExists(
+	ctx context.Context,
+	pullSecretName string,
+) bool {
+	args := []string{
+		"get",
+		"secret",
+		pullSecretName,
+	}
+
+	_, err := k.buildCmd(ctx, args).CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 func (k *KubernetesDriver) createPullSecret(
