@@ -11,23 +11,40 @@ import (
 type ContainerRegistry interface {
 	Login()
 	Logout()
+
 	PublicImageName() string
 	PrivateImageName() string
+
+	Username() string
+	Password() string
+	Server() string
 }
 
 type Registry struct {
-	Username string
-	Password string
-	Server   string
+	username string
+	password string
+	server   string
+}
+
+func (r *Registry) Password() string {
+	return r.password
+}
+
+func (r *Registry) Username() string {
+	return r.username
+}
+
+func (r *Registry) Server() string {
+	return r.server
 }
 
 func (r *Registry) Login() {
 	cmd := exec.Command(
 		"docker",
 		"login",
-		r.Server,
-		"--username", r.Username,
-		"--password", r.Password,
+		r.server,
+		"--username", r.username,
+		"--password", r.password,
 	)
 
 	stdin, err := cmd.StdinPipe()
@@ -37,7 +54,7 @@ func (r *Registry) Login() {
 
 	go func() {
 		defer stdin.Close()
-		_, _ = stdin.Write([]byte(r.Password))
+		_, _ = stdin.Write([]byte(r.password))
 	}()
 
 	output, err := cmd.CombinedOutput()
@@ -47,7 +64,7 @@ func (r *Registry) Login() {
 }
 
 func (r *Registry) Logout() {
-	cmd := exec.Command("docker", "logout", r.Server)
+	cmd := exec.Command("docker", "logout", r.server)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Sprintf("failed to logout of Docker: %v, output: %s", err, output))
@@ -57,7 +74,7 @@ func (r *Registry) Logout() {
 type AWSRegistry struct{ Registry }
 
 func (r *AWSRegistry) imageName(basename string) string {
-	return path.Join(r.Server, basename)
+	return path.Join(r.Server(), basename)
 }
 
 func (r *AWSRegistry) PrivateImageName() string {
@@ -85,7 +102,7 @@ func (r *GithubRegistry) PublicImageName() string {
 type DockerHubRegistry struct{ Registry }
 
 func (r *DockerHubRegistry) imageName(basename string) string {
-	return path.Join(r.Username, basename)
+	return path.Join(r.Username(), basename)
 }
 
 func (r *DockerHubRegistry) PrivateImageName() string {
@@ -106,9 +123,9 @@ func RegistryFromEnv() (ContainerRegistry, error) {
 	}
 
 	reg := &Registry{
-		Username: dockerUsername,
-		Password: dockerPassword,
-		Server:   containerRegistry,
+		username: dockerUsername,
+		password: dockerPassword,
+		server:   containerRegistry,
 	}
 
 	if strings.Contains(containerRegistry, "amazonaws.com") {

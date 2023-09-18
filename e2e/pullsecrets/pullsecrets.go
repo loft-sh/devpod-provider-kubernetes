@@ -42,7 +42,6 @@ var _ = Describe("Pull secrets", func() {
 		deleteNamespace(client, namespace)
 	})
 
-	// NOTE: It was tested with Docker Hub and AWS ECR, make sure image is private
 	It("should create pull secret and make pod use it", func() {
 		By("Login to private container registry")
 		imageName := registry.PrivateImageName()
@@ -98,7 +97,6 @@ var _ = Describe("Pull secrets", func() {
 		Expect(created).To(BeFalse())
 	})
 
-	// NOTE: make sure the image is public
 	It("should work with public images without pull secret", func() {
 		imageName := registry.PublicImageName()
 
@@ -130,8 +128,8 @@ var _ = Describe("Pull secrets", func() {
 		authToken, err := driver.ReadSecretContents(context.TODO(), pullSecretName, registryName)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(authToken).To(SatisfyAny(
-			BeEquivalentTo(registry.Password),
-			BeEquivalentTo(fmt.Sprintf("%s:%s", registry.Username, registry.Password)),
+			BeEquivalentTo(registry.Password()),
+			BeEquivalentTo(fmt.Sprintf("%s:%s", registry.Username(), registry.Password())),
 		))
 	})
 })
