@@ -116,13 +116,6 @@ var _ = Describe("Pull secrets", func() {
 			Skip(err.Error())
 		}
 
-		if registry.isAWSContainerRegistry() {
-			Skip("This test doesn't support AWS ECR public images")
-		}
-		if registry.isGithubContainerRegistry() {
-			Skip("This test doesn't support Github Container Registry public images.")
-		}
-
 		pullSecretName := "test-pull-secret"
 		imageName := registry.ImageName("public-test-image")
 
