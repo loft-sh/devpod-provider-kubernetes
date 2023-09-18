@@ -23,11 +23,19 @@ var _ = Describe("Pull secrets", func() {
 	var namespace string
 	var client *k8s.Clientset
 	var driver *kubernetes.KubernetesDriver
+	var registry ContainerRegistry
+	const pullSecretName = "test-pull-secret"
 
 	BeforeEach(func() {
 		client = setUpK8sClient()
 		namespace = createEphemeralNamespace(client)
 		driver = prepareK8sDriver(namespace)
+
+		var err error
+		registry, err = RegistryFromEnv()
+		if err != nil {
+			Skip(err.Error())
+		}
 	})
 
 	AfterEach(func() {
@@ -37,14 +45,7 @@ var _ = Describe("Pull secrets", func() {
 	// NOTE: It was tested with Docker Hub and AWS ECR, make sure image is private
 	It("should create pull secret and make pod use it", func() {
 		By("Login to private container registry")
-
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("private-test-image")
+		imageName := registry.PrivateImageName()
 
 		registry.Login()
 		defer registry.Logout()
@@ -60,13 +61,7 @@ var _ = Describe("Pull secrets", func() {
 	})
 
 	It("should delete created pull secret if called DeletePullSecret()", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("private-test-image")
+		imageName := registry.PrivateImageName()
 
 		registry.Login()
 		defer registry.Logout()
@@ -86,13 +81,7 @@ var _ = Describe("Pull secrets", func() {
 	})
 
 	It("shouldn't recreate pull secret if it exists and haven't changed", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("private-test-image")
+		imageName := registry.PrivateImageName()
 
 		registry.Login()
 		defer registry.Logout()
@@ -111,13 +100,7 @@ var _ = Describe("Pull secrets", func() {
 
 	// NOTE: make sure the image is public
 	It("should work with public images without pull secret", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("public-test-image")
+		imageName := registry.PublicImageName()
 
 		// there shouldn't be any error, but the pull secret shouldn't be created
 		created, err := driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
@@ -132,12 +115,7 @@ var _ = Describe("Pull secrets", func() {
 	})
 
 	It("should be able to read pull secret", func() {
-		registry, err := RegistryFromEnv()
-		if err != nil {
-			Skip(err.Error())
-		}
-		pullSecretName := "test-pull-secret"
-		imageName := registry.ImageName("public-test-image")
+		imageName := registry.PublicImageName()
 		registryName, err := kubernetes.GetRegistryFromImageName(imageName)
 		if err != nil {
 			panic(err)

@@ -11,7 +11,8 @@ import (
 type ContainerRegistry interface {
 	Login()
 	Logout()
-	ImageName(basename string) string
+	PublicImageName() string
+	PrivateImageName() string
 }
 
 type Registry struct {
@@ -55,20 +56,44 @@ func (r *Registry) Logout() {
 
 type AWSRegistry struct{ Registry }
 
-func (r *AWSRegistry) ImageName(basename string) string {
+func (r *AWSRegistry) imageName(basename string) string {
 	return path.Join(r.Server, basename)
+}
+
+func (r *AWSRegistry) PrivateImageName() string {
+	return r.imageName("private-test-image")
+}
+
+func (r *AWSRegistry) PublicImageName() string {
+	return r.imageName("public-test-image")
 }
 
 type GithubRegistry struct{ Registry }
 
-func (r *GithubRegistry) ImageName(basename string) string {
+func (r *GithubRegistry) imageName(basename string) string {
 	return path.Join("ghcr.io/loft-sh/devpod-provider-kubernetes/", basename)
+}
+
+func (r *GithubRegistry) PrivateImageName() string {
+	return r.imageName("private-test-image")
+}
+
+func (r *GithubRegistry) PublicImageName() string {
+	return r.imageName("public-test-image")
 }
 
 type DockerHubRegistry struct{ Registry }
 
-func (r *DockerHubRegistry) ImageName(basename string) string {
+func (r *DockerHubRegistry) imageName(basename string) string {
 	return path.Join(r.Username, basename)
+}
+
+func (r *DockerHubRegistry) PrivateImageName() string {
+	return r.imageName("private-test-image")
+}
+
+func (r *DockerHubRegistry) PublicImageName() string {
+	return r.imageName("public-test-image")
 }
 
 func RegistryFromEnv() (ContainerRegistry, error) {
