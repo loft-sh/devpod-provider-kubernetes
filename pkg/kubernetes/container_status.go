@@ -15,7 +15,7 @@ func (cs *ContainerStatus) IsWaiting() bool {
 }
 
 func (cs *ContainerStatus) IsTerminated() bool {
-	return cs.status.State.Terminated != nil && cs.status.State.Terminated.ExitCode != 0
+	return cs.status.State.Terminated != nil
 }
 
 func (cs *ContainerStatus) Succeeded() bool {
