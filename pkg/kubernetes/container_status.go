@@ -2,35 +2,30 @@ package kubernetes
 
 import corev1 "k8s.io/api/core/v1"
 
-type ContainerStatus struct {
-	status *corev1.ContainerStatus
+func IsReady(status *corev1.ContainerStatus) bool {
+	return status.Ready
 }
 
-func (cs *ContainerStatus) IsReady() bool {
-	return cs.status.Ready
+func IsWaiting(status *corev1.ContainerStatus) bool {
+	return status.State.Waiting != nil
 }
 
-func (cs *ContainerStatus) IsWaiting() bool {
-	return cs.status.State.Waiting != nil
+func IsTerminated(status *corev1.ContainerStatus) bool {
+	return status.State.Terminated != nil
 }
 
-func (cs *ContainerStatus) IsTerminated() bool {
-	return cs.status.State.Terminated != nil
+func IsRunning(status *corev1.ContainerStatus) bool {
+	return status.State.Running != nil
 }
 
-func (cs *ContainerStatus) Succeeded() bool {
-	return cs.status.State.Terminated != nil && cs.status.State.Terminated.ExitCode == 0
+func Succeeded(status *corev1.ContainerStatus) bool {
+	return status.State.Terminated != nil && status.State.Terminated.ExitCode == 0
 }
 
-func (cs *ContainerStatus) IsRunning() bool {
-	return cs.status.State.Running != nil
+func IsCritical(status *corev1.ContainerStatus) bool {
+	return criticalStatus[status.State.Waiting.Reason]
 }
 
-func (cs *ContainerStatus) IsCriticalStatus() bool {
-	return criticalStatus[cs.status.State.Waiting.Reason]
-}
-
-// criticalStatus container status
 var criticalStatus = map[string]bool{
 	"Error":                      true,
 	"Unknown":                    true,
