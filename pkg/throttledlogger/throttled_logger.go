@@ -1,4 +1,4 @@
-package throttled_logger
+package throttledlogger
 
 import (
 	"time"

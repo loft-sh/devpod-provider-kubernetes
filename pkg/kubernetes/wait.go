@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loft-sh/devpod-provider-kubernetes/pkg/throttled_logger"
+	"github.com/loft-sh/devpod-provider-kubernetes/pkg/throttledlogger"
 	"github.com/loft-sh/devpod/pkg/command"
 	perrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -14,7 +14,7 @@ import (
 )
 
 func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*corev1.Pod, error) {
-	throttledLogger := throttled_logger.NewThrottledLogger(k.Log, time.Second*5)
+	throttledLogger := throttledlogger.NewThrottledLogger(k.Log, time.Second*5)
 
 	var pod *corev1.Pod
 	err := wait.PollImmediate(time.Second, time.Minute*10, func() (bool, error) {
