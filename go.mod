@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/docker/cli v23.0.0-rc.1+incompatible
-	github.com/docker/distribution v2.8.1+incompatible
+	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker v24.0.5+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/loft-sh/devpod v0.3.7-0.20230901154107-eb8b4518c008
