@@ -36,7 +36,7 @@ devpod provider delete kubernetes
 ```
 3. Install the new provider from the local build
 ```sh
-devpod provider add ./release/provider.yaml --name kubernetes
+devpod provider add --name kubernetes --use ./release/provider.yaml 
 ```
 4. Test your provider, e.g. with `devpod up` command. Make sure you have a valid kubeconfig file in your home directory.
 ```sh
