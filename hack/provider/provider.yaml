@@ -28,6 +28,8 @@ optionGroups:
       - HELPER_RESOURCES
       - HELPER_IMAGE
       - LABELS
+      - DOCKERLESS_DISABLED
+      - DOCKERLESS_IMAGE
     name: "Advanced Options"
 options:
   DISK_SIZE:
@@ -92,9 +94,19 @@ options:
   LABELS:
     description: The labels to use for the workspace pod. E.g. devpod.sh/example=value,devpod.sh/example2=value2
     global: true
+  DOCKERLESS_IMAGE:
+    description: The dockerless image to use.
+    global: true
+  DOCKERLESS_DISABLED:
+    description: If dockerless should be disabled. Dockerless is the way DevPod uses to build images directly within Kubernetes. If dockerless is disabled and no image is specified, DevPod will fail instead.
+    global: true
+    default: "false"
 agent:
   containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
   local: true
+  dockerless:
+    disabled: ${DOCKERLESS_DISABLED}
+    image: ${DOCKERLESS_IMAGE}
   binaries:
     KUBERNETES_PROVIDER:
       - os: linux
