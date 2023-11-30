@@ -94,7 +94,7 @@ var _ = Describe("Pull secrets", func() {
 
 		created, err = driver.EnsurePullSecret(context.TODO(), pullSecretName, imageName)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(created).To(BeFalse())
+		Expect(created).To(BeTrue())
 	})
 
 	It("should work with public images without pull secret", func() {
