@@ -1,0 +1,91 @@
+---
+name: Bug Report
+description: File a bug report
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        **NOTE** A large number of issues reported against DevPod Kubernetes provider are often found to already be fixed in more current versions of the product.  Before reporting an issue, please verify the version you are running with `devpod provider list` and compare it to the latest release. If they differ, please update your version of DevPod and the Kubernetes Provider to the latest possible and retry your command before creating an issue.
+
+        Commands you might need to run to fill out the issue form:
+          $ devpod provider list
+          $ devpod provider update
+  - type: textarea
+    id: description
+    attributes:
+      label: Issue Description
+      description: Please explain your issue
+      value: "Describe your issue"
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Steps to reproduce the issue
+      description: Please explain the steps to reproduce the issue
+      value: "Steps to reproduce the issue\n1.\n2.\n3.\n"
+    validations:
+      required: true
+  - type: textarea
+    id: received_results
+    attributes:
+      label: Describe the results you received
+      description: Please explain the results you are noticing
+      value: "Describe the results you received"
+    validations:
+      required: true
+  - type: textarea
+    id: expected_results
+    attributes:
+      label: Describe the results you expected
+      description: Please explain the results you are expecting
+      value: "Describe the results you expected"
+    validations:
+      required: true
+  - type: textarea
+    id: podman_info
+    attributes:
+      label: --debug output
+      description: `devpod --debug daemon-logs`
+      value: In case you use a Machine, provide operating system and its version and the architecture you are running.
+      render: yaml
+    validations:
+      required: false
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating System
+      description: Please select the Operating System on which DevPod is installed
+      options:
+        - 'Linux'
+        - 'MacOS'
+        - 'Windows'
+        - 'Other'
+    validations:
+      required: true
+  - type: dropdown
+    id: upstream_latest
+    attributes:
+      label: Upstream Latest Release
+      description: Have you tried running the latest upstream release?
+      options:
+        - 'Yes'
+        - 'No'
+    validations:
+      required: true
+  - type: textarea
+    id: additional_environment
+    attributes:
+      label: Additional environment details
+      description: Please describe any additional environment details like (AWS, VirtualBox,...)
+      value: "Additional environment details"
+  - type: textarea
+    id: additional_info
+    attributes:
+      label: Additional information
+      description: Please explain the additional information you deem important
+      value: "Additional information like issue happens only occasionally or issue happens with a particular architecture or on a particular setting"
+    validations:
+      required: false
