@@ -184,6 +184,48 @@ func (k *KubernetesDriver) runContainer(
 	pod.Spec.Volumes = getVolumes(pod, id)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
+	affinity := false
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	// detect if we have an architecture pod running
+	splitId := strings.Split(id, "-")
+	splitId = splitId[:len(splitId)-2]
+
+	affinityLabel := strings.Join(splitId, "-")
+    affinityPod := ""
+
+	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", "workspace=" + affinityLabel}, nil, stdout, stderr)
+	if err != nil {
+		k.Log.Debugf("skipping finding cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
+	}
+	if stdout.String() != "" {
+	    affinityPod = strings.TrimSpace(stdout.String())
+		affinity = true
+	}
+
+	if affinity {
+        k.Log.Infof("Found architecture detecting pod: %s, using PodAffinity...", affinityPod)
+		pod.Spec.Affinity = &corev1.Affinity{
+			PodAffinity: &corev1.PodAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					{
+						LabelSelector: &metav1.LabelSelector{
+							MatchExpressions: []metav1.LabelSelectorRequirement{
+								{
+									Key:      "workspace",
+									Operator: metav1.LabelSelectorOpIn,
+									Values:   []string{affinityLabel},
+								},
+							},
+						},
+						Namespaces:  []string{k.namespace},
+						TopologyKey: "kubernetes.io/hostname",
+					},
+				},
+			},
+		}
+	}
+
 	if k.options.KubernetesPullSecretsEnabled == "true" && pullSecretsCreated {
 		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: getPullSecretsName(id)}}
 	}
@@ -208,6 +250,15 @@ func (k *KubernetesDriver) runContainer(
 	_, err = k.waitPodRunning(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	// cleanup
+	if affinity {
+        k.Log.Infof("Cleaning up detecting architecture pod: %s", affinityPod)
+		err = k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", "workspace=" + affinityLabel}, nil, buf, buf)
+		if err != nil {
+			return errors.Wrapf(err, "cleanup jobs: %s", buf.String())
+		}
 	}
 
 	return nil
