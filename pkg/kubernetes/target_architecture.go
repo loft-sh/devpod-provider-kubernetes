@@ -34,7 +34,7 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 		"-n", k.namespace,
 		"-q", "--restart=Never",
 		"--image", k.helperImage(),
-		"--labels", "workspace=" + workspaceId,
+		"--labels", "devpod/workspace=" + workspaceId,
 		"--", "sh", "-c", "uname -m && tail -f /dev/null"}, os.Stdin, stdout, stderr)
 	if err != nil {
 		return "", fmt.Errorf("find out cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
