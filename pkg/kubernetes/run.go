@@ -187,14 +187,9 @@ func (k *KubernetesDriver) runContainer(
 	affinity := false
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	// detect if we have an architecture pod running
-	splitId := strings.Split(id, "-")
-	splitId = splitId[:len(splitId)-2]
-
-	affinityLabel := strings.Join(splitId, "-")
 	affinityPod := ""
 
-	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", "devpod/workspace=" + affinityLabel}, nil, stdout, stderr)
+	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", "devpod.sh/workspace=" + id}, nil, stdout, stderr)
 	if err != nil {
 		k.Log.Debugf("skipping finding cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
@@ -222,9 +217,9 @@ func (k *KubernetesDriver) runContainer(
 				LabelSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
-							Key:      "devpod/workspace",
+							Key:      "devpod.sh/workspace",
 							Operator: metav1.LabelSelectorOpIn,
-							Values:   []string{affinityLabel},
+							Values:   []string{id},
 						},
 					},
 				},
@@ -262,7 +257,7 @@ func (k *KubernetesDriver) runContainer(
 	// cleanup
 	if affinity {
 		k.Log.Infof("Cleaning up detecting architecture pod: %s", affinityPod)
-		err = k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", "devpod/workspace=" + affinityLabel}, nil, buf, buf)
+		err = k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", "devpod.sh/workspace=" + id}, nil, buf, buf)
 		if err != nil {
 			return errors.Wrapf(err, "cleanup jobs: %s", buf.String())
 		}
