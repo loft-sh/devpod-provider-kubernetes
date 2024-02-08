@@ -32,7 +32,7 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 	err := k.runCommand(ctx, []string{
 		"run", podName,
 		"-n", k.namespace,
-		"-q", "--rm", "--restart=Never",
+		"-q", "--restart=Never",
 		"--image", k.helperImage(),
 		"--labels", "workspace=" + workspaceId,
 		"--", "sh", "-c", "uname -m && tail -f /dev/null"}, os.Stdin, stdout, stderr)
