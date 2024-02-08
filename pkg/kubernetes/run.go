@@ -192,19 +192,19 @@ func (k *KubernetesDriver) runContainer(
 	splitId = splitId[:len(splitId)-2]
 
 	affinityLabel := strings.Join(splitId, "-")
-    affinityPod := ""
+	affinityPod := ""
 
 	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", "workspace=" + affinityLabel}, nil, stdout, stderr)
 	if err != nil {
 		k.Log.Debugf("skipping finding cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
 	if stdout.String() != "" {
-	    affinityPod = strings.TrimSpace(stdout.String())
+		affinityPod = strings.TrimSpace(stdout.String())
 		affinity = true
 	}
 
 	if affinity {
-        k.Log.Infof("Found architecture detecting pod: %s, using PodAffinity...", affinityPod)
+		k.Log.Infof("Found architecture detecting pod: %s, using PodAffinity...", affinityPod)
 		pod.Spec.Affinity = &corev1.Affinity{
 			PodAffinity: &corev1.PodAffinity{
 				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -254,7 +254,7 @@ func (k *KubernetesDriver) runContainer(
 
 	// cleanup
 	if affinity {
-        k.Log.Infof("Cleaning up detecting architecture pod: %s", affinityPod)
+		k.Log.Infof("Cleaning up detecting architecture pod: %s", affinityPod)
 		err = k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", "workspace=" + affinityLabel}, nil, buf, buf)
 		if err != nil {
 			return errors.Wrapf(err, "cleanup jobs: %s", buf.String())

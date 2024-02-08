@@ -30,12 +30,12 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 	stderr := &bytes.Buffer{}
 	podName := encoding.SafeConcatNameMax([]string{"devpod", workspaceId, random.String(6)}, 32)
 	err := k.runCommand(ctx, []string{
-	    "run", podName,
-	    "-n", k.namespace,
-	    "-q", "--rm", "--restart=Never",
-	    "--image", k.helperImage(),
-	    "--labels", "workspace=" + workspaceId,
-	    "--", "sh", "-c", "uname -m && tail -f /dev/null"}, os.Stdin, stdout, stderr)
+		"run", podName,
+		"-n", k.namespace,
+		"-q", "--rm", "--restart=Never",
+		"--image", k.helperImage(),
+		"--labels", "workspace=" + workspaceId,
+		"--", "sh", "-c", "uname -m && tail -f /dev/null"}, os.Stdin, stdout, stderr)
 	if err != nil {
 		return "", fmt.Errorf("find out cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
