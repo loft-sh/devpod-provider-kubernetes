@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/loft-sh/devpod/pkg/encoding"
@@ -23,11 +24,31 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 		}
 	}
 
-	// get target architecture
+	// get target architnecture
 	k.Log.Infof("Find out cluster architecture...")
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	err := k.runCommand(ctx, []string{"run", "-i", encoding.SafeConcatNameMax([]string{"devpod", workspaceId, random.String(6)}, 32), "-q", "--pod-running-timeout=10m0s", "--rm", "--restart=Never", "--image", k.helperImage(), "--", "sh"}, strings.NewReader("uname -a; exit 0"), stdout, stderr)
+	podName := encoding.SafeConcatNameMax([]string{"devpod", workspaceId, random.String(6)}, 32)
+	err := k.runCommand(ctx, []string{
+		"run", podName,
+		"-n", k.namespace,
+		"-q", "--restart=Never",
+		"--image", k.helperImage(),
+		"--labels", "devpod.sh/workspace=" + workspaceId,
+		"--", "sh", "-c", "uname -m && tail -f /dev/null"}, os.Stdin, stdout, stderr)
+	if err != nil {
+		return "", fmt.Errorf("find out cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
+	}
+
+	// wait for pod running
+	k.Log.Infof("Waiting for cluster architecture job to come up...")
+	_, err = k.waitPodRunning(ctx, podName)
+	if err != nil {
+		return "", fmt.Errorf("find out cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
+	}
+
+	// capture uname output
+	err = k.runCommand(ctx, []string{"logs", podName, "-n", k.namespace}, os.Stdin, stdout, stderr)
 	if err != nil {
 		return "", fmt.Errorf("find out cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
