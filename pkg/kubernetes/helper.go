@@ -18,10 +18,6 @@ const (
 )
 
 func parseResources(resourceString string, log log.Logger) corev1.ResourceRequirements {
-	if resourceString == "" {
-		return corev1.ResourceRequirements{}
-	}
-
 	resourcesSplitted := strings.Split(resourceString, ",")
 	requests := corev1.ResourceList{}
 	limits := corev1.ResourceList{}
