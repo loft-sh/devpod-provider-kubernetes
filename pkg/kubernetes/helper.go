@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/ghodss/yaml"
@@ -55,8 +56,28 @@ func parseResources(resourceString string, log log.Logger) corev1.ResourceRequir
 	}
 }
 
-func getPodTemplate(manifestFilePath string) (*corev1.Pod, error) {
-	body, err := os.ReadFile(manifestFilePath)
+func getPodTemplate(manifest string) (*corev1.Pod, error) {
+	_, err := os.Stat(manifest)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// try to parse inline template
+			pod := &corev1.Pod{}
+			err = yaml.Unmarshal([]byte(manifest), pod)
+			if err != nil {
+				return nil, errors.Wrap(err, "unmarshal pod template")
+			}
+
+			return pod, nil
+		}
+
+		return nil, err
+	}
+
+	p, err := filepath.Abs(manifest)
+	if err != nil {
+		return nil, err
+	}
+	body, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}

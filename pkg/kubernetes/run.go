@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -89,11 +88,7 @@ func (k *KubernetesDriver) runContainer(
 		},
 	}
 	if len(k.options.PodManifestTemplate) > 0 {
-		podManifestTemplatePath, err := filepath.Abs(k.options.PodManifestTemplate)
-		if err != nil {
-			return err
-		}
-		pod, err = getPodTemplate(podManifestTemplatePath)
+		pod, err = getPodTemplate(k.options.PodManifestTemplate)
 		if err != nil {
 			return err
 		}
