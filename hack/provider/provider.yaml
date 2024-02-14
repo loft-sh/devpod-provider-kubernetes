@@ -89,8 +89,9 @@ options:
     description: The resources to use for the workspace container. E.g. requests.cpu=500m,limits.memory=5Gi,limits.gpu-vendor.example/example-gpu=1
     global: true
   POD_MANIFEST_TEMPLATE:
-    description: Pod manifest template file path used as template to build the devpod pod. E.g. /path/pod_manifest.yaml
+    description: Pod manifest template file path used as template to build the devpod pod. E.g. /path/pod_manifest.yaml. Alternatively can be an inline yaml string.
     global: true
+    type: multiline
   LABELS:
     description: The labels to use for the workspace pod. E.g. devpod.sh/example=value,devpod.sh/example2=value2
     global: true
