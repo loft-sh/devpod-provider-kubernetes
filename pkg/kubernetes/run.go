@@ -162,7 +162,13 @@ func (k *KubernetesDriver) runContainer(
 	}
 
 	// parse resources
-	resources := parseResources(k.options.Resources, k.Log)
+	resources := corev1.ResourceRequirements{}
+	if len(pod.Spec.Containers) > 0 {
+		resources = pod.Spec.Containers[0].Resources
+	}
+	if k.options.Resources != "" {
+		resources = parseResources(k.options.Resources, k.Log)
+	}
 
 	// ensure pull secrets
 	pullSecretsCreated := false
