@@ -78,9 +78,9 @@ func (k *KubernetesDriver) buildPersistentVolumeClaim(
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   id,
-			Labels: DevPodLabels,
+			Labels: ExtraDevPodLabels,
 			Annotations: map[string]string{
-				DevContainerInfoAnnotation: containerInfo,
+				DevPodInfoAnnotation: containerInfo,
 			},
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{

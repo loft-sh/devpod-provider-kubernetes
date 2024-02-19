@@ -3,35 +3,38 @@ package options
 import (
 	"fmt"
 	"os"
+	"reflect"
 )
 
 type Options struct {
-	DevContainerID string
+	ComparableOptions
 
-	DiskSize string
+	KubernetesContext   string `json:"-"`
+	KubernetesConfig    string `json:"-"`
+	KubernetesNamespace string `json:"-"`
+	KubectlPath         string `json:"-"`
+}
 
-	KubernetesContext            string
-	KubernetesConfig             string
-	KubernetesNamespace          string
-	KubernetesPullSecretsEnabled string
+type ComparableOptions struct {
+	DevContainerID string `json:"devcontainerId,omitempty"`
 
-	CreateNamespace string
-	ClusterRole     string
-	ServiceAccount  string
+	KubernetesPullSecretsEnabled string `json:"kubernetesPullSecretsEnabled,omitempty"`
+	CreateNamespace              string `json:"createNamespace,omitempty"`
+	ClusterRole                  string `json:"clusterRole,omitempty"`
+	ServiceAccount               string `json:"serviceAccount,omitempty"`
 
-	HelperImage     string
-	HelperResources string
+	HelperImage       string `json:"helperImage,omitempty"`
+	HelperResources   string `json:"helperResources,omitempty"`
+	InactivityTimeout string `json:"inactivityTimeout,omitempty"`
+	StorageClass      string `json:"storageClass,omitempty"`
 
-	KubectlPath       string
-	InactivityTimeout string
-	StorageClass      string
+	DiskSize      string `json:"diskSize,omitempty"`
+	PvcAccessMode string `json:"pvcAccessMode,omitempty"`
+	NodeSelector  string `json:"nodeSelector,omitempty"`
+	Resources     string `json:"resources,omitempty"`
 
-	PvcAccessMode string
-	NodeSelector  string
-	Resources     string
-
-	PodManifestTemplate string
-	Labels              string
+	PodManifestTemplate string `json:"podManifestTemplate,omitempty"`
+	Labels              string `json:"labels,omitempty"`
 }
 
 func FromEnv() (*Options, error) {
@@ -64,6 +67,10 @@ func FromEnv() (*Options, error) {
 	retOptions.Labels = os.Getenv("LABELS")
 
 	return retOptions, nil
+}
+
+func Equal(a *ComparableOptions, b *ComparableOptions) bool {
+	return reflect.DeepEqual(a, b)
 }
 
 func fromEnvOrError(name string) (string, error) {

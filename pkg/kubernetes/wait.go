@@ -117,3 +117,12 @@ func (k *KubernetesDriver) getPod(ctx context.Context, id string) (*corev1.Pod, 
 
 	return pod, nil
 }
+
+func (k *KubernetesDriver) waitPodDeleted(ctx context.Context, id string) error {
+	out, err := k.buildCmd(ctx, []string{"delete", "pod", id, "--ignore-not-found", "--wait"}).Output()
+	if err != nil {
+		return fmt.Errorf("delete pod: %w", command.WrapCommandError(out, err))
+	}
+
+	return nil
+}

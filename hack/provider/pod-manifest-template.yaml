@@ -6,7 +6,9 @@ spec:
   containers:
     - name: devpod
       resources:
-        limits:
-          cpu: 1
         requests:
-          cpu: 0.5
+          cpu: 2
+      volumeMounts:
+        - mountPath: /workspaces/.home
+          name: devpod
+          subPath: devpod/home

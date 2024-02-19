@@ -37,10 +37,15 @@ func NewRunCmd() *cobra.Command {
 
 // Run runs the command logic
 func (cmd *RunCmd) Run(ctx context.Context, options *options.Options, log log.Logger) error {
-	runOptions := &driver.RunOptions{}
-	err := json.Unmarshal([]byte(os.Getenv("DEVCONTAINER_RUN_OPTIONS")), runOptions)
-	if err != nil {
-		return fmt.Errorf("unmarshal run options: %w", err)
+	var runOptions *driver.RunOptions
+
+	runOptsEnv := os.Getenv("DEVCONTAINER_RUN_OPTIONS")
+	if runOptsEnv != "" && runOptsEnv != "null" {
+		runOptions = &driver.RunOptions{}
+		err := json.Unmarshal([]byte(runOptsEnv), runOptions)
+		if err != nil {
+			return fmt.Errorf("unmarshal run options: %w", err)
+		}
 	}
 
 	return kubernetes.NewKubernetesDriver(options, log).RunDevContainer(ctx, options.DevContainerID, runOptions)
