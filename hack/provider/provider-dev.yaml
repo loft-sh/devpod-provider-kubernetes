@@ -121,6 +121,7 @@ agent:
     runDevContainer: ${KUBERNETES_PROVIDER} run
     deleteDevContainer: ${KUBERNETES_PROVIDER} delete
     targetArchitecture: ${KUBERNETES_PROVIDER} target-architecture
+    canReprovision: true
 exec:
   command: |-
     "${DEVPOD}" helper sh -c "${COMMAND}"

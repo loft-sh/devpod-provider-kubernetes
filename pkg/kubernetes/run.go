@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	optionspkg "github.com/loft-sh/devpod-provider-kubernetes/pkg/options"
 	"github.com/loft-sh/devpod/pkg/devcontainer/config"
 	"github.com/loft-sh/devpod/pkg/driver"
 	"github.com/pkg/errors"
@@ -15,11 +16,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const DevContainerInfoAnnotation = "devpod.sh/info"
 const DevContainerName = "devpod"
 
-var DevPodLabels = map[string]string{
-	"devpod.sh/created": "true",
+const (
+	DevPodCreatedLabel   = "devpod.sh/created"
+	DevPodWorkspaceLabel = "devpod.sh/workspace"
+
+	DevPodInfoAnnotation        = "devpod.sh/info"
+	DevPodLastAppliedAnnotation = "devpod.sh/last-applied-configuration"
+)
+
+var ExtraDevPodLabels = map[string]string{
+	DevPodCreatedLabel: "true",
 }
 
 type DevContainerInfo struct {
@@ -46,10 +54,16 @@ func (k *KubernetesDriver) RunDevContainer(
 
 	// check if persistent volume claim already exists
 	initialize := false
-	pvc, _, err := k.getDevContainerPvc(ctx, workspaceId)
+	pvc, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
 	if err != nil {
 		return err
-	} else if pvc == nil {
+	}
+
+	if pvc == nil {
+		if options == nil {
+			return fmt.Errorf("No options provided and no persistent volume claim found for workspace '%s'", workspaceId)
+		}
+
 		// create persistent volume claim
 		err = k.createPersistentVolumeClaim(ctx, workspaceId, options)
 		if err != nil {
@@ -57,6 +71,11 @@ func (k *KubernetesDriver) RunDevContainer(
 		}
 
 		initialize = true
+	}
+
+	// reuse driver.RunOptions from existing workspace if none provided
+	if options == nil && containerInfo != nil && containerInfo.Options != nil {
+		options = containerInfo.Options
 	}
 
 	// create dev container
@@ -188,19 +207,19 @@ func (k *KubernetesDriver) runContainer(
 	affinity := false
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	affinityPod := ""
+	affinityPodID := ""
 
-	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", "devpod.sh/workspace=" + id}, nil, stdout, stderr)
+	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", DevPodWorkspaceLabel + id}, nil, stdout, stderr)
 	if err != nil {
 		k.Log.Debugf("skipping finding cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
 	if stdout.String() != "" {
-		affinityPod = strings.TrimSpace(stdout.String())
+		affinityPodID = strings.TrimSpace(stdout.String())
 		affinity = true
 	}
 
 	if affinity {
-		k.Log.Infof("Found architecture detecting pod: %s, using PodAffinity...", affinityPod)
+		k.Log.Infof("Found architecture detecting pod: %s, using PodAffinity...", affinityPodID)
 
 		// ensure we have a pod affinity, and in that case we have, just add ours
 		if pod.Spec.Affinity == nil || pod.Spec.Affinity.PodAffinity == nil {
@@ -218,7 +237,7 @@ func (k *KubernetesDriver) runContainer(
 				LabelSelector: &metav1.LabelSelector{
 					MatchExpressions: []metav1.LabelSelectorRequirement{
 						{
-							Key:      "devpod.sh/workspace",
+							Key:      DevPodWorkspaceLabel,
 							Operator: metav1.LabelSelectorOpIn,
 							Values:   []string{id},
 						},
@@ -233,13 +252,62 @@ func (k *KubernetesDriver) runContainer(
 		pod.Spec.ImagePullSecrets = []corev1.LocalObjectReference{{Name: getPullSecretsName(id)}}
 	}
 
+	// try to get existing pod
+	existingPod, err := k.getPod(ctx, id)
+	if err != nil {
+		return errors.Wrapf(err, "get pod: %s", id)
+	}
+
+	if existingPod != nil {
+		existingOptions := &optionspkg.Options{}
+		err := json.Unmarshal([]byte(existingPod.GetAnnotations()[DevPodLastAppliedAnnotation]), existingOptions)
+		if err != nil {
+			k.Log.Errorf("Error unmarshalling existing provider options, continuing...: %s", err)
+		}
+
+		if optionspkg.Equal(&existingOptions.ComparableOptions, &k.options.ComparableOptions) {
+			// Nothing changed, can safely return
+			k.Log.Debug("Provider options did not change, skipping update")
+			return nil
+		}
+
+		// Stop the current pod
+		k.Log.Debug("Provider options changed")
+		err = k.waitPodDeleted(ctx, id)
+		if err != nil {
+			return errors.Wrapf(err, "stop devcontainer: %s", id)
+		}
+	}
+
+	err = k.runPod(ctx, id, pod, affinity)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (k *KubernetesDriver) runPod(ctx context.Context, id string, pod *corev1.Pod, affinity bool) error {
+	var err error
+
+	// set configuration before creating the pod
+	lastAppliedConfigRaw, err := json.Marshal(k.options)
+	if err != nil {
+		return errors.Wrap(err, "marshal last applied config")
+	}
+
+	if pod.Annotations == nil {
+		pod.Annotations = map[string]string{}
+	}
+	pod.Annotations[DevPodLastAppliedAnnotation] = string(lastAppliedConfigRaw)
+
 	// marshal the pod
 	podRaw, err := json.Marshal(pod)
 	if err != nil {
 		return err
 	}
-	k.Log.Debugf("Create pod with: %s", string(podRaw))
 
+	k.Log.Debugf("Create pod with: %s", string(podRaw))
 	// create the pod
 	k.Log.Infof("Create Pod '%s'", id)
 	buf := &bytes.Buffer{}
@@ -255,10 +323,9 @@ func (k *KubernetesDriver) runContainer(
 		return err
 	}
 
-	// cleanup
 	if affinity {
-		k.Log.Infof("Cleaning up detecting architecture pod: %s", affinityPod)
-		err = k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", "devpod.sh/workspace=" + id}, nil, buf, buf)
+		k.Log.Infof("Cleaning up architecture detection pod")
+		err := k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", DevPodWorkspaceLabel + id}, nil, buf, buf)
 		if err != nil {
 			return errors.Wrapf(err, "cleanup jobs: %s", buf.String())
 		}
@@ -367,7 +434,7 @@ func getLabels(pod *corev1.Pod, rawLabels string) (map[string]string, error) {
 		}
 	}
 	// make sure we don't overwrite the devpod labels
-	for k, v := range DevPodLabels {
+	for k, v := range ExtraDevPodLabels {
 		labels[k] = v
 	}
 

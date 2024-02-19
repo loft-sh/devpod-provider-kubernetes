@@ -26,7 +26,7 @@ func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, service
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   serviceAccount,
-				Labels: DevPodLabels,
+				Labels: ExtraDevPodLabels,
 			},
 		})
 		if err != nil {
@@ -55,7 +55,7 @@ func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, service
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   id,
-					Labels: DevPodLabels,
+					Labels: ExtraDevPodLabels,
 				},
 				Subjects: []rbacv1.Subject{
 					{
