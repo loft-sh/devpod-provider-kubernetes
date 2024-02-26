@@ -209,7 +209,7 @@ func (k *KubernetesDriver) runContainer(
 	stderr := &bytes.Buffer{}
 	affinityPodID := ""
 
-	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", DevPodWorkspaceLabel + id}, nil, stdout, stderr)
+	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", DevPodWorkspaceLabel + "=" + id}, nil, stdout, stderr)
 	if err != nil {
 		k.Log.Debugf("skipping finding cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
@@ -325,7 +325,7 @@ func (k *KubernetesDriver) runPod(ctx context.Context, id string, pod *corev1.Po
 
 	if affinity {
 		k.Log.Infof("Cleaning up architecture detection pod")
-		err := k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", DevPodWorkspaceLabel + id}, nil, buf, buf)
+		err := k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", DevPodWorkspaceLabel + "=" + id}, nil, buf, buf)
 		if err != nil {
 			return errors.Wrapf(err, "cleanup jobs: %s", buf.String())
 		}
