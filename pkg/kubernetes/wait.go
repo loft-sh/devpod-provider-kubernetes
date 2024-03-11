@@ -16,8 +16,13 @@ import (
 func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*corev1.Pod, error) {
 	throttledLogger := throttledlogger.NewThrottledLogger(k.Log, time.Second*5)
 
+	timeoutDuration, err := time.ParseDuration(k.options.PodTimeout)
+	if err != nil {
+		return nil, perrors.Wrap(err, "parse pod timeout")
+	}
+
 	var pod *corev1.Pod
-	err := wait.PollImmediate(time.Second, time.Minute*10, func() (bool, error) {
+	err = wait.PollImmediate(time.Second, timeoutDuration, func() (bool, error) {
 		var err error
 		pod, err = k.getPod(ctx, id)
 		if err != nil {
