@@ -13,6 +13,7 @@ type Options struct {
 	KubernetesConfig    string `json:"-"`
 	KubernetesNamespace string `json:"-"`
 	KubectlPath         string `json:"-"`
+	PodTimeout          string `json:"-"`
 }
 
 type ComparableOptions struct {
@@ -65,6 +66,7 @@ func FromEnv() (*Options, error) {
 	retOptions.Resources = os.Getenv("RESOURCES")
 	retOptions.PodManifestTemplate = os.Getenv("POD_MANIFEST_TEMPLATE")
 	retOptions.Labels = os.Getenv("LABELS")
+	retOptions.PodTimeout = os.Getenv("POD_TIMEOUT")
 
 	return retOptions, nil
 }

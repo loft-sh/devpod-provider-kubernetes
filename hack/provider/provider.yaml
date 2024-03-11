@@ -76,6 +76,9 @@ options:
     global: true
   INACTIVITY_TIMEOUT:
     description: "If defined, will automatically stop the pod after the inactivity period. Examples: 10m, 1h"
+  POD_TIMEOUT:
+    description: "Determines how long the provider waits for the workspace pod to come up. Examples: 10m, 1h"
+    default: 10m
   STORAGE_CLASS:
     description: If defined, DevPod will use the given storage class to create the persistent volume claim. You will need to ensure the storage class exists in your cluster!
     global: true
