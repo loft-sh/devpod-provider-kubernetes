@@ -379,6 +379,7 @@ func getContainers(
 		devPodContainer.EnvFrom = existingDevPodContainer.EnvFrom
 		devPodContainer.Ports = existingDevPodContainer.Ports
 		devPodContainer.VolumeMounts = append(existingDevPodContainer.VolumeMounts, devPodContainer.VolumeMounts...)
+		devPodContainer.ImagePullPolicy = existingDevPodContainer.ImagePullPolicy
 	}
 	retContainers = append(retContainers, devPodContainer)
 
