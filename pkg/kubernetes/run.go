@@ -200,7 +200,7 @@ func (k *KubernetesDriver) runContainer(
 	pod.Spec.ServiceAccountName = serviceAccount
 	pod.Spec.NodeSelector = nodeSelector
 	pod.Spec.InitContainers = append(initContainer, pod.Spec.InitContainers...)
-	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged)
+	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged, k.options.DangerouslyOverrideImage)
 	pod.Spec.Volumes = getVolumes(pod, id)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
@@ -344,6 +344,7 @@ func getContainers(
 	capabilities *corev1.Capabilities,
 	resources corev1.ResourceRequirements,
 	privileged *bool,
+	overrideImage string,
 ) []corev1.Container {
 	devPodContainer := corev1.Container{
 		Name:         DevContainerName,
@@ -360,6 +361,10 @@ func getContainers(
 			RunAsGroup:   &[]int64{0}[0],
 			RunAsNonRoot: &[]bool{false}[0],
 		},
+	}
+
+	if overrideImage != "" {
+		devPodContainer.Image = overrideImage
 	}
 
 	// merge with existing container if it exists

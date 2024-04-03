@@ -105,6 +105,10 @@ options:
     description: If dockerless should be disabled. Dockerless is the way DevPod uses to build images directly within Kubernetes. If dockerless is disabled and no image is specified, DevPod will fail instead.
     global: true
     default: "false"
+  DANGEROUSLY_OVERRIDE_IMAGE:
+    description: Only set this if you know what you're doing! Overrides the pod base image and could break your workspace.
+    global: true
+    default: ""
 agent:
   containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
   local: true
