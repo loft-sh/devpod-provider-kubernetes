@@ -36,6 +36,8 @@ type ComparableOptions struct {
 
 	PodManifestTemplate string `json:"podManifestTemplate,omitempty"`
 	Labels              string `json:"labels,omitempty"`
+
+	DangerouslyOverrideImage string `json:"dangerouslyOverrideImage,omitempty"`
 }
 
 func FromEnv() (*Options, error) {
@@ -67,6 +69,7 @@ func FromEnv() (*Options, error) {
 	retOptions.PodManifestTemplate = os.Getenv("POD_MANIFEST_TEMPLATE")
 	retOptions.Labels = os.Getenv("LABELS")
 	retOptions.PodTimeout = os.Getenv("POD_TIMEOUT")
+	retOptions.DangerouslyOverrideImage = os.Getenv("DANGEROUSLY_OVERRIDE_IMAGE")
 
 	return retOptions, nil
 }

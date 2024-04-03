@@ -90,6 +90,10 @@ options:
   LABELS:
     description: The labels to use for the workspace pod. E.g. devpod.sh/example=value,devpod.sh/example2=value2
     global: true
+  DANGEROUSLY_OVERRIDE_IMAGE:
+    description: Only set this if you know what you're doing! Overrides the pod base image and could break your workspace.
+    global: true
+    default: ""
 agent:
   containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
   local: true
