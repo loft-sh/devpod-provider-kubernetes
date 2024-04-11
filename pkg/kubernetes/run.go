@@ -218,7 +218,7 @@ func (k *KubernetesDriver) runContainer(
 		affinity = true
 	}
 
-	if affinity {
+	if affinity && k.options.NodeSelector == "" {
 		k.Log.Infof("Found architecture detecting pod: %s, using PodAffinity...", affinityPodID)
 
 		// ensure we have a pod affinity, and in that case we have, just add ours
