@@ -207,6 +207,14 @@ func (k *KubernetesDriver) CommandDevContainer(ctx context.Context, workspaceId,
 	return k.runCommand(ctx, args, stdin, stdout, stderr)
 }
 
+func (k *KubernetesDriver) GetDevContainerLogs(ctx context.Context, workspaceID string, stdout io.Writer, stderr io.Writer) error {
+	workspaceID = getID(workspaceID)
+
+	args := []string{"logs", "pods/" + workspaceID, "-c", "devpod"}
+
+	return k.runCommand(ctx, args, nil, stdout, stderr)
+}
+
 func (k *KubernetesDriver) buildCmd(ctx context.Context, args []string) *exec.Cmd {
 	newArgs := []string{}
 	if k.namespace != "" {
