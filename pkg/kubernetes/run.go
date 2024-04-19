@@ -200,7 +200,7 @@ func (k *KubernetesDriver) runContainer(
 	pod.Spec.ServiceAccountName = serviceAccount
 	pod.Spec.NodeSelector = nodeSelector
 	pod.Spec.InitContainers = append(initContainer, pod.Spec.InitContainers...)
-	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged, k.options.DangerouslyOverrideImage)
+	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged, k.options.DangerouslyOverrideImage, k.options.StrictSecurity)
 	pod.Spec.Volumes = getVolumes(pod, id)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
@@ -345,6 +345,7 @@ func getContainers(
 	resources corev1.ResourceRequirements,
 	privileged *bool,
 	overrideImage string,
+	strictSecurity bool,
 ) []corev1.Container {
 	devPodContainer := corev1.Container{
 		Name:         DevContainerName,
@@ -367,6 +368,10 @@ func getContainers(
 		devPodContainer.Image = overrideImage
 	}
 
+	if strictSecurity {
+		devPodContainer.SecurityContext = nil
+	}
+
 	// merge with existing container if it exists
 	var existingDevPodContainer *corev1.Container
 	retContainers := []corev1.Container{}
@@ -379,12 +384,17 @@ func getContainers(
 			}
 		}
 	}
+
 	if existingDevPodContainer != nil {
 		devPodContainer.Env = append(existingDevPodContainer.Env, devPodContainer.Env...)
 		devPodContainer.EnvFrom = existingDevPodContainer.EnvFrom
 		devPodContainer.Ports = existingDevPodContainer.Ports
 		devPodContainer.VolumeMounts = append(existingDevPodContainer.VolumeMounts, devPodContainer.VolumeMounts...)
 		devPodContainer.ImagePullPolicy = existingDevPodContainer.ImagePullPolicy
+
+		if devPodContainer.SecurityContext == nil && existingDevPodContainer.SecurityContext != nil {
+			devPodContainer.SecurityContext = existingDevPodContainer.SecurityContext
+		}
 	}
 	retContainers = append(retContainers, devPodContainer)
 

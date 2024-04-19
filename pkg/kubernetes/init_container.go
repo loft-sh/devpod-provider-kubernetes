@@ -30,20 +30,25 @@ func (k *KubernetesDriver) getInitContainer(options *driver.RunOptions) ([]corev
 		return nil, nil
 	}
 
-	// return container
+	securityContext := &corev1.SecurityContext{
+		RunAsUser:    &[]int64{0}[0],
+		RunAsGroup:   &[]int64{0}[0],
+		RunAsNonRoot: &[]bool{false}[0],
+	}
+	if k.options.StrictSecurity {
+		securityContext = nil
+	}
+
 	return []corev1.Container{
 		{
-			Name:         "devpod-init",
-			Image:        options.Image,
-			Command:      []string{"sh"},
-			Args:         []string{"-c", strings.Join(commands, "\n") + "\n"},
-			Resources:    parseResources(k.options.HelperResources, k.Log),
-			VolumeMounts: volumeMounts,
-			SecurityContext: &corev1.SecurityContext{
-				RunAsUser:    &[]int64{0}[0],
-				RunAsGroup:   &[]int64{0}[0],
-				RunAsNonRoot: &[]bool{false}[0],
-			},
+			Name:            "devpod-init",
+			Image:           options.Image,
+			Command:         []string{"sh"},
+			Args:            []string{"-c", strings.Join(commands, "\n") + "\n"},
+			Resources:       parseResources(k.options.HelperResources, k.Log),
+			VolumeMounts:    volumeMounts,
+			SecurityContext: securityContext,
 		},
 	}, nil
+
 }
