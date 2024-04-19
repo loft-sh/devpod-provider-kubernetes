@@ -38,6 +38,7 @@ type ComparableOptions struct {
 	Labels              string `json:"labels,omitempty"`
 
 	DangerouslyOverrideImage string `json:"dangerouslyOverrideImage,omitempty"`
+	StrictSecurity           bool   `json:"strictSecurity,omitEmpty"`
 }
 
 func FromEnv() (*Options, error) {
@@ -70,6 +71,7 @@ func FromEnv() (*Options, error) {
 	retOptions.Labels = os.Getenv("LABELS")
 	retOptions.PodTimeout = os.Getenv("POD_TIMEOUT")
 	retOptions.DangerouslyOverrideImage = os.Getenv("DANGEROUSLY_OVERRIDE_IMAGE")
+	retOptions.StrictSecurity = os.Getenv("STRICT_SECURITY") == "true"
 
 	return retOptions, nil
 }

@@ -109,6 +109,10 @@ options:
     description: Only set this if you know what you're doing! Overrides the pod base image and could break your workspace.
     global: true
     default: ""
+  STRICT_SECURITY:
+    description: "EXPERIMENTAL! Use at your own risk. Removes the default security context and merges the one from POD_MANIFEST_TEMPLATE if specified."
+    type: boolean
+    default: false
 agent:
   containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
   local: true
