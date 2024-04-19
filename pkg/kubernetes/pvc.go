@@ -71,6 +71,12 @@ func (k *KubernetesDriver) buildPersistentVolumeClaim(
 		}
 	}
 
+	labels := map[string]string{}
+	labels[DevPodWorkspaceUIDLabel] = options.UID
+	for k, v := range ExtraDevPodLabels {
+		labels[k] = v
+	}
+
 	pvc := &corev1.PersistentVolumeClaim{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PersistentVolumeClaim",
@@ -78,7 +84,7 @@ func (k *KubernetesDriver) buildPersistentVolumeClaim(
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   id,
-			Labels: ExtraDevPodLabels,
+			Labels: labels,
 			Annotations: map[string]string{
 				DevPodInfoAnnotation: containerInfo,
 			},

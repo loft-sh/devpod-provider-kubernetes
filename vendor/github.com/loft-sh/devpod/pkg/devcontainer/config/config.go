@@ -17,6 +17,7 @@ type MergedDevContainerConfig struct {
 	ImageContainer          `json:",inline"`
 	ComposeContainer        `json:",inline"`
 	DockerfileContainer     `json:",inline"`
+	RunningContainer        `json:",inline"`
 
 	// Origin is the origin from where this config was loaded
 	Origin string `json:"-"`
@@ -29,6 +30,7 @@ type DevContainerConfig struct {
 	ImageContainer         `json:",inline"`
 	ComposeContainer       `json:",inline"`
 	DockerfileContainer    `json:",inline"`
+	RunningContainer       `json:",inline"`
 
 	// Origin is the origin from where this config was loaded
 	Origin string `json:"-"`
@@ -58,7 +60,7 @@ type DevContainerConfigBase struct {
 	PortsAttributes map[string]PortAttribute `json:"portAttributes,omitempty"`
 
 	// Set default properties that are applied to all ports that don't get properties from the setting `remote.portsAttributes`.
-	OtherPortsAttributes map[string]PortAttribute `json:"otherPortsAttributes,omitempty"`
+	OtherPortsAttributes *PortAttribute `json:"otherPortsAttributes,omitempty"`
 
 	// Controls whether on Linux the container's user should be updated with the local user's UID and GID. On by default when opening from a local folder.
 	UpdateRemoteUserUID *bool `json:"updateRemoteUserUID,omitempty"`
@@ -214,7 +216,59 @@ type DockerfileContainer struct {
 	Context string `json:"context,omitempty"`
 
 	// Docker build-related options.
-	Build ConfigBuildOptions `json:"build,omitempty"`
+	Build *ConfigBuildOptions `json:"build,omitempty"`
+}
+
+type RunningContainer struct {
+	ContainerID string `json:"containerID,omitempty"`
+}
+
+func (d DockerfileContainer) GetDockerfile() string {
+	if d.Dockerfile != "" {
+		return d.Dockerfile
+	}
+	if d.Build != nil && d.Build.Dockerfile != "" {
+		return d.Build.Dockerfile
+	}
+	return ""
+}
+
+func (d DockerfileContainer) GetContext() string {
+	if d.Context != "" {
+		return d.Context
+	}
+	if d.Build != nil && d.Build.Context != "" {
+		return d.Build.Context
+	}
+	return ""
+}
+
+func (d DockerfileContainer) GetTarget() string {
+	if d.Build != nil {
+		return d.Build.Target
+	}
+	return ""
+}
+
+func (d DockerfileContainer) GetArgs() map[string]string {
+	if d.Build != nil {
+		return d.Build.Args
+	}
+	return nil
+}
+
+func (d DockerfileContainer) GetOptions() []string {
+	if d.Build != nil {
+		return d.Build.Options
+	}
+	return nil
+}
+
+func (d DockerfileContainer) GetCacheFrom() types.StrArray {
+	if d.Build != nil {
+		return d.Build.CacheFrom
+	}
+	return nil
 }
 
 type ConfigBuildOptions struct {
@@ -232,6 +286,9 @@ type ConfigBuildOptions struct {
 
 	// The image to consider as a cache. Use an array to specify multiple images.
 	CacheFrom types.StrArray `json:"cacheFrom,omitempty"`
+
+	// Build cli options
+	Options []string `json:"options,omitempty"`
 }
 
 type HostRequirements struct {
@@ -245,7 +302,7 @@ type HostRequirements struct {
 	Storage string `json:"storage,omitempty"`
 
 	// If GPU support should be enabled
-	GPU bool `json:"gpu,omitempty"`
+	GPU types.StrBool `json:"gpu,omitempty"`
 }
 
 type PortAttribute struct {
@@ -268,7 +325,8 @@ type PortAttribute struct {
 }
 
 type DevPodCustomizations struct {
-	PrebuildRepository types.StrArray `json:"prebuildRepository,omitempty"`
+	PrebuildRepository         types.StrArray    `json:"prebuildRepository,omitempty"`
+	FeatureDownloadHTTPHeaders map[string]string `json:"featureDownloadHTTPHeaders,omitempty"`
 }
 
 type VSCodeCustomizations struct {
@@ -304,15 +362,8 @@ func (m *Mount) String() string {
 }
 
 func GetContextPath(parsedConfig *DevContainerConfig) string {
-	context := ""
-	dockerfilePath := ""
-	if parsedConfig.Dockerfile != "" {
-		context = parsedConfig.Context
-		dockerfilePath = parsedConfig.Dockerfile
-	} else if parsedConfig.Build.Dockerfile != "" {
-		context = parsedConfig.Build.Context
-		dockerfilePath = parsedConfig.Build.Dockerfile
-	}
+	context := parsedConfig.GetContext()
+	dockerfilePath := parsedConfig.GetDockerfile()
 
 	configDir := path.Dir(filepath.ToSlash(parsedConfig.Origin))
 	if context != "" {

@@ -19,6 +19,10 @@ import (
 
 type DockerHelper struct {
 	DockerCommand string
+	// for a running container, we cannot pass down the container ID to the driver without introducing
+	// changes in the driver interface (which we do not want to do). So, to get around this, we pass
+	// it down to the driver during docker helper initialization.
+	ContainerID string
 	// allow command to have a custom environment
 	Environment []string
 }
@@ -91,6 +95,14 @@ func (r *DockerHelper) Stop(ctx context.Context, id string) error {
 	return nil
 }
 
+func (r *DockerHelper) Pull(ctx context.Context, image string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
+	cmd := r.buildCmd(ctx, "pull", image)
+	cmd.Stdin = stdin
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	return cmd.Run()
+}
+
 func (r *DockerHelper) Remove(ctx context.Context, id string) error {
 	out, err := r.buildCmd(ctx, "rm", id).CombinedOutput()
 	if err != nil {
@@ -127,6 +139,24 @@ func (r *DockerHelper) StartContainer(ctx context.Context, containerId string) e
 	}
 
 	return nil
+}
+
+func (r *DockerHelper) GetImageTag(ctx context.Context, imageID string) (string, error) {
+	args := []string{"inspect", "--type", "image", "--format", "{{if .RepoTags}}{{index .RepoTags 0}}{{end}}"}
+	args = append(args, imageID)
+	out, err := r.buildCmd(ctx, args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("inspect container: %w", command.WrapCommandError(out, err))
+	}
+
+	repoTag := string(out)
+	tagSplits := strings.Split(repoTag, ":")
+
+	if len(tagSplits) > 0 {
+		return tagSplits[1], nil
+	}
+
+	return "", nil
 }
 
 func (r *DockerHelper) InspectImage(ctx context.Context, imageName string, tryRemote bool) (*config.ImageDetails, error) {
@@ -179,6 +209,17 @@ func (r *DockerHelper) IsPodman() bool {
 	}
 
 	return strings.Contains(string(out), "podman")
+}
+
+func (r *DockerHelper) IsNerdctl() bool {
+	args := []string{"--version"}
+
+	out, err := r.buildCmd(context.TODO(), args...).Output()
+	if err != nil {
+		return false
+	}
+
+	return strings.Contains(string(out), "nerdctl")
 }
 
 func (r *DockerHelper) Inspect(ctx context.Context, ids []string, inspectType string, obj interface{}) error {
@@ -255,6 +296,15 @@ func (r *DockerHelper) FindContainerJSON(ctx context.Context, labels []string) (
 	}
 
 	return result, nil
+}
+
+func (r *DockerHelper) GetContainerLogs(ctx context.Context, id string, stdout io.Writer, stderr io.Writer) error {
+	args := []string{"logs", id}
+	cmd := r.buildCmd(ctx, args...)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	return cmd.Run()
 }
 
 func (r *DockerHelper) buildCmd(ctx context.Context, args ...string) *exec.Cmd {

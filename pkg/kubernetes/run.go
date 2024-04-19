@@ -19,8 +19,9 @@ import (
 const DevContainerName = "devpod"
 
 const (
-	DevPodCreatedLabel   = "devpod.sh/created"
-	DevPodWorkspaceLabel = "devpod.sh/workspace"
+	DevPodCreatedLabel      = "devpod.sh/created"
+	DevPodWorkspaceLabel    = "devpod.sh/workspace"
+	DevPodWorkspaceUIDLabel = "devpod.sh/workspace-uid"
 
 	DevPodInfoAnnotation        = "devpod.sh/info"
 	DevPodLastAppliedAnnotation = "devpod.sh/last-applied-configuration"
@@ -168,6 +169,7 @@ func (k *KubernetesDriver) runContainer(
 	if err != nil {
 		return err
 	}
+	labels[DevPodWorkspaceUIDLabel] = options.UID
 
 	// node selector
 	nodeSelector, err := getNodeSelector(pod, k.options.NodeSelector)
