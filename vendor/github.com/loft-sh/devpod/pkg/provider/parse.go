@@ -19,6 +19,7 @@ var optionNameRegEx = regexp.MustCompile(`[^A-Z0-9_]+`)
 
 var allowedTypes = []string{
 	"string",
+	"multiline",
 	"duration",
 	"number",
 	"boolean",
@@ -193,6 +194,8 @@ func validateProviderType(config *ProviderConfig) error {
 		if len(config.Agent.Custom.CommandDevContainer) == 0 {
 			return fmt.Errorf("agent.custom.commandDevContainer is required")
 		}
+		// TODO: Add config.Agent.Custom.GetDevContainerLogs validation
+		// after we released a new version of the kubernetes provider and gave folks a chance to update
 	}
 
 	// agent binaries

@@ -3,6 +3,7 @@ package feature
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -59,6 +60,11 @@ on_exit () {
 
 trap on_exit EXIT
 
+set -a
+. ../devcontainer-features.builtin.env
+. ./devcontainer-features.env
+set +a
+
 echo ===========================================================================
 ` + echoWarning + `
 echo 'Feature       : ` + name + `'
@@ -68,12 +74,9 @@ echo 'Version       : ` + version + `'
 echo 'Documentation : ` + documentation + `'
 echo 'Options       :'
 echo '` + optionsIndented + `'
+echo 'Environment   :'
+printenv
 echo ===========================================================================
-
-set -a
-. ../devcontainer-features.builtin.env
-. ./devcontainer-features.env
-set +a
 
 chmod +x ./install.sh
 ./install.sh
@@ -88,13 +91,13 @@ func escapeQuotesForShell(str string) string {
 	return strings.ReplaceAll(str, "'", `'\''`)
 }
 
-func ProcessFeatureID(id, configDir string, log log.Logger) (string, error) {
+func ProcessFeatureID(id string, devContainerConfig *config.DevContainerConfig, log log.Logger, forceBuild bool) (string, error) {
 	if strings.HasPrefix(id, "https://") || strings.HasPrefix(id, "http://") {
 		log.Debugf("Process url feature")
-		return processDirectTarFeature(id, log)
+		return processDirectTarFeature(id, config.GetDevPodCustomizations(devContainerConfig).FeatureDownloadHTTPHeaders, log, forceBuild)
 	} else if strings.HasPrefix(id, "./") || strings.HasPrefix(id, "../") {
 		log.Debugf("Process local feature")
-		return filepath.Abs(path.Join(filepath.ToSlash(configDir), id))
+		return filepath.Abs(path.Join(filepath.ToSlash(filepath.Dir(devContainerConfig.Origin)), id))
 	}
 
 	// get oci feature
@@ -192,7 +195,7 @@ func downloadLayer(img v1.Image, id, destFile string, log log.Logger) error {
 	return nil
 }
 
-func processDirectTarFeature(id string, log log.Logger) (string, error) {
+func processDirectTarFeature(id string, httpHeaders map[string]string, log log.Logger, forceDownload bool) (string, error) {
 	downloadBase := id[strings.LastIndex(id, "/"):]
 	if !directTarballRegEx.MatchString(downloadBase) {
 		return "", fmt.Errorf("expected tarball name to follow 'devcontainer-feature-<feature-id>.tgz' format.  Received '%s' ", downloadBase)
@@ -202,13 +205,13 @@ func processDirectTarFeature(id string, log log.Logger) (string, error) {
 	featureFolder := getFeaturesTempFolder(id)
 	featureExtractedFolder := filepath.Join(featureFolder, "extracted")
 	_, err := os.Stat(featureExtractedFolder)
-	if err == nil {
+	if err == nil && !forceDownload {
 		return featureExtractedFolder, nil
 	}
 
 	// download feature tarball
 	downloadFile := filepath.Join(featureFolder, "feature.tgz")
-	err = downloadFeatureFromURL(id, downloadFile, log)
+	err = downloadFeatureFromURL(id, downloadFile, httpHeaders, log)
 	if err != nil {
 		return "", err
 	}
@@ -230,7 +233,7 @@ func processDirectTarFeature(id string, log log.Logger) (string, error) {
 	return featureExtractedFolder, nil
 }
 
-func downloadFeatureFromURL(url string, destFile string, log log.Logger) error {
+func downloadFeatureFromURL(url string, destFile string, httpHeaders map[string]string, log log.Logger) error {
 	// create the features temp folder
 	err := os.MkdirAll(filepath.Dir(destFile), 0755)
 	if err != nil {
@@ -239,11 +242,22 @@ func downloadFeatureFromURL(url string, destFile string, log log.Logger) error {
 
 	// initiate download
 	log.Debugf("Download feature from %s", url)
-	resp, err := devpodhttp.GetHTTPClient().Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return errors.Wrap(err, "make request")
+	}
+	for key, value := range httpHeaders {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := devpodhttp.GetHTTPClient().Do(req)
 	if err != nil {
 		return errors.Wrap(err, "make request")
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("GET request failed, status code is '%d'", resp.StatusCode)
+	}
 
 	// download the tar.gz file
 	file, err := os.Create(destFile)

@@ -2,6 +2,7 @@ package feature
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/loft-sh/devpod/pkg/devcontainer/config"
 )
@@ -10,8 +11,10 @@ func getFeatureEnvVariables(feature *config.FeatureConfig, featureOptions interf
 	options := getFeatureValueObject(feature, featureOptions)
 	variables := []string{}
 	for k, v := range options {
-		variables = append(variables, fmt.Sprintf(`%s="%s"`, getFeatureSafeID(k), v))
+		variables = append(variables, fmt.Sprintf(`%s="%v"`, getFeatureSafeID(k), v))
 	}
+
+	sort.Strings(variables)
 
 	return variables
 }
