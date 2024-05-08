@@ -24,6 +24,7 @@ optionGroups:
       - PVC_ACCESS_MODE
       - RESOURCES
       - POD_MANIFEST_TEMPLATE
+      - ARCH_DETECTION_POD_MANIFEST_TEMPLATE
       - NODE_SELECTOR
       - HELPER_RESOURCES
       - HELPER_IMAGE
@@ -93,6 +94,10 @@ options:
     global: true
   POD_MANIFEST_TEMPLATE:
     description: Pod manifest template file path used as template to build the devpod pod. E.g. /path/pod_manifest.yaml. Alternatively can be an inline yaml string.
+    global: true
+    type: multiline
+  ARCH_DETECTION_POD_MANIFEST_TEMPLATE:
+    description: Pod manifest template file path used as template to build the architecture detenction pod. E.g. /path/pod_manifest.yaml. Alternatively can be an inline yaml string.
     global: true
     type: multiline
   LABELS:

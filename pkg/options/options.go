@@ -34,8 +34,9 @@ type ComparableOptions struct {
 	NodeSelector  string `json:"nodeSelector,omitempty"`
 	Resources     string `json:"resources,omitempty"`
 
-	PodManifestTemplate string `json:"podManifestTemplate,omitempty"`
-	Labels              string `json:"labels,omitempty"`
+	PodManifestTemplate              string `json:"podManifestTemplate,omitempty"`
+	ArchDetectionPodManifestTemplate string `json:"archDetectionPodManifestTemplate,omitempty"`
+	Labels                           string `json:"labels,omitempty"`
 
 	DangerouslyOverrideImage string `json:"dangerouslyOverrideImage,omitempty"`
 	StrictSecurity           bool   `json:"strictSecurity,omitEmpty"`
@@ -72,6 +73,7 @@ func FromEnv() (*Options, error) {
 	retOptions.PodTimeout = os.Getenv("POD_TIMEOUT")
 	retOptions.DangerouslyOverrideImage = os.Getenv("DANGEROUSLY_OVERRIDE_IMAGE")
 	retOptions.StrictSecurity = os.Getenv("STRICT_SECURITY") == "true"
+	retOptions.ArchDetectionPodManifestTemplate = os.Getenv("ARCH_DETECTION_POD_MANIFEST_TEMPLATE")
 
 	return retOptions, nil
 }
