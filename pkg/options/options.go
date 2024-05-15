@@ -14,6 +14,7 @@ type Options struct {
 	KubernetesNamespace string `json:"-"`
 	KubectlPath         string `json:"-"`
 	PodTimeout          string `json:"-"`
+	ReprovisioningMode  bool   `json:"-"`
 }
 
 type ComparableOptions struct {
@@ -38,8 +39,7 @@ type ComparableOptions struct {
 	ArchDetectionPodManifestTemplate string `json:"archDetectionPodManifestTemplate,omitempty"`
 	Labels                           string `json:"labels,omitempty"`
 
-	DangerouslyOverrideImage string `json:"dangerouslyOverrideImage,omitempty"`
-	StrictSecurity           bool   `json:"strictSecurity,omitEmpty"`
+	StrictSecurity bool `json:"strictSecurity,omitEmpty"`
 }
 
 func FromEnv() (*Options, error) {
@@ -71,9 +71,9 @@ func FromEnv() (*Options, error) {
 	retOptions.PodManifestTemplate = os.Getenv("POD_MANIFEST_TEMPLATE")
 	retOptions.Labels = os.Getenv("LABELS")
 	retOptions.PodTimeout = os.Getenv("POD_TIMEOUT")
-	retOptions.DangerouslyOverrideImage = os.Getenv("DANGEROUSLY_OVERRIDE_IMAGE")
 	retOptions.StrictSecurity = os.Getenv("STRICT_SECURITY") == "true"
 	retOptions.ArchDetectionPodManifestTemplate = os.Getenv("ARCH_DETECTION_POD_MANIFEST_TEMPLATE")
+	retOptions.ReprovisioningMode = os.Getenv("REPROVISIONING_MODE") == "true"
 
 	return retOptions, nil
 }

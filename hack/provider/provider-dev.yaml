@@ -103,14 +103,15 @@ options:
   LABELS:
     description: The labels to use for the workspace pod. E.g. devpod.sh/example=value,devpod.sh/example2=value2
     global: true
-  DANGEROUSLY_OVERRIDE_IMAGE:
-    description: Only set this if you know what you're doing! Overrides the pod base image and could break your workspace.
-    global: true
-    default: ""
   STRICT_SECURITY:
     description: "EXPERIMENTAL! Use at your own risk. Removes the default security context and merges the one from POD_MANIFEST_TEMPLATE if specified."
     type: boolean
     default: false
+  REPROVISIONING_MODE:
+    description: "In this mode the provider compares the old options against the current ones on every workspace start and reschedules the pod if necessary whilst preserving the PVC."
+    type: boolean
+    default: false
+    global: true
 agent:
   containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
   local: true
@@ -148,7 +149,7 @@ agent:
     runDevContainer: ${KUBERNETES_PROVIDER} run
     deleteDevContainer: ${KUBERNETES_PROVIDER} delete
     targetArchitecture: ${KUBERNETES_PROVIDER} target-architecture
-    canReprovision: true
+    canReprovision: ${KUBERNETES_PROVIDER} can-reprovision
 exec:
   command: |-
     "${DEVPOD}" helper sh -c "${COMMAND}"
