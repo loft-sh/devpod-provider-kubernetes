@@ -64,5 +64,6 @@ func BuildRoot() *cobra.Command {
 	rootCmd.AddCommand(NewFindCmd())
 	rootCmd.AddCommand(NewCommandCmd())
 	rootCmd.AddCommand(NewTargetArchitectureCmd())
+	rootCmd.AddCommand(NewCanReprovisionCmd())
 	return rootCmd
 }
