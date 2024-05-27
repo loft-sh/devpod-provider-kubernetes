@@ -141,13 +141,13 @@ agent:
         checksum: ##CHECKSUM_WINDOWS_AMD64##
   driver: custom
   custom:
-    findDevContainer: ${KUBERNETES_PROVIDER} find
-    commandDevContainer: ${KUBERNETES_PROVIDER} command
-    startDevContainer: ${KUBERNETES_PROVIDER} start
-    stopDevContainer: ${KUBERNETES_PROVIDER} stop
-    runDevContainer: ${KUBERNETES_PROVIDER} run
-    deleteDevContainer: ${KUBERNETES_PROVIDER} delete
-    targetArchitecture: ${KUBERNETES_PROVIDER} target-architecture
+    findDevContainer: '"${KUBERNETES_PROVIDER}" find'
+    commandDevContainer: '"${KUBERNETES_PROVIDER}" command'
+    startDevContainer: '"${KUBERNETES_PROVIDER}" start'
+    stopDevContainer: '"${KUBERNETES_PROVIDER}" stop'
+    runDevContainer: '"${KUBERNETES_PROVIDER}" run'
+    deleteDevContainer: '"${KUBERNETES_PROVIDER}" delete'
+    targetArchitecture: '"${KUBERNETES_PROVIDER}" target-architecture'
     canReprovision: true
 exec:
   command: |-
