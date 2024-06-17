@@ -29,10 +29,11 @@ type ComparableOptions struct {
 	InactivityTimeout string `json:"inactivityTimeout,omitempty"`
 	StorageClass      string `json:"storageClass,omitempty"`
 
-	DiskSize      string `json:"diskSize,omitempty"`
-	PvcAccessMode string `json:"pvcAccessMode,omitempty"`
-	NodeSelector  string `json:"nodeSelector,omitempty"`
-	Resources     string `json:"resources,omitempty"`
+	DiskSize             string `json:"diskSize,omitempty"`
+	PvcAccessMode        string `json:"pvcAccessMode,omitempty"`
+	NodeSelector         string `json:"nodeSelector,omitempty"`
+	Resources            string `json:"resources,omitempty"`
+	WorkspaceVolumeMount string `json:"workspaceVolumeMount,omitempty"`
 
 	PodManifestTemplate              string `json:"podManifestTemplate,omitempty"`
 	ArchDetectionPodManifestTemplate string `json:"archDetectionPodManifestTemplate,omitempty"`
@@ -74,6 +75,7 @@ func FromEnv() (*Options, error) {
 	retOptions.DangerouslyOverrideImage = os.Getenv("DANGEROUSLY_OVERRIDE_IMAGE")
 	retOptions.StrictSecurity = os.Getenv("STRICT_SECURITY") == "true"
 	retOptions.ArchDetectionPodManifestTemplate = os.Getenv("ARCH_DETECTION_POD_MANIFEST_TEMPLATE")
+	retOptions.WorkspaceVolumeMount = os.Getenv("WORKSPACE_VOLUME_MOUNT")
 
 	return retOptions, nil
 }
