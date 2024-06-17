@@ -111,6 +111,16 @@ options:
     description: "EXPERIMENTAL! Use at your own risk. Removes the default security context and merges the one from POD_MANIFEST_TEMPLATE if specified."
     type: boolean
     default: false
+  WORKSPACE_VOLUME_MOUNT:
+    description: Sets the path of the workspace volume mount. By default it is the root of your workspace source code, usually /workspaces/$WORKSPACE_ID. If you intend to create multi-repo workspaces or need additional files throughout the lifecycle of the workspace, set this option to a parent directory of the workspace mount.
+    type: string
+  DOCKERLESS_IMAGE:
+    description: The dockerless image to use.
+    global: true
+  DOCKERLESS_DISABLED:
+    description: If dockerless should be disabled. Dockerless is the way DevPod uses to build images directly within Kubernetes. If dockerless is disabled and no image is specified, DevPod will fail instead.
+    global: true
+    default: "false"
 agent:
   containerInactivityTimeout: ${INACTIVITY_TIMEOUT}
   local: true
