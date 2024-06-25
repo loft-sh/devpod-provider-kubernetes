@@ -103,6 +103,7 @@ func (k *KubernetesDriver) infoFromObject(ctx context.Context, pvc *corev1.Persi
 	pod, err := k.waitPodRunning(ctx, pvc.Name)
 	if err != nil {
 		k.Log.Infof("Error finding pod: %v", err)
+		k.Log.Warn("If the pod does not come up automatically it is stuck in an error state. Recreate the workspace to recover from this")
 		pod = nil
 	}
 
