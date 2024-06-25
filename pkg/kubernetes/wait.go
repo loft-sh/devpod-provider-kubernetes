@@ -43,7 +43,7 @@ func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 			return false, nil
 		}
 
-		// check container status
+		// check init container status
 		for _, c := range pod.Status.InitContainerStatuses {
 			containerStatus := &c
 			if IsWaiting(containerStatus) {
@@ -101,6 +101,7 @@ func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 
 		return true, nil
 	})
+
 	return pod, err
 }
 
