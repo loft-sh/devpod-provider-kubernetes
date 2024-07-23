@@ -18,6 +18,7 @@ import (
 )
 
 const DevContainerName = "devpod"
+const InitContainerName = "devpod-init"
 
 const (
 	DevPodCreatedLabel      = "devpod.sh/created"
@@ -127,13 +128,10 @@ func (k *KubernetesDriver) runContainer(
 		}
 	}
 
-	// get init container
-	var initContainer []corev1.Container
-	if initialize {
-		initContainer, err = k.getInitContainer(options)
-		if err != nil {
-			return errors.Wrap(err, "build init container")
-		}
+	// get init containers
+	initContainers, err := k.getInitContainers(options, pod, initialize)
+	if err != nil {
+		return errors.Wrap(err, "build init container")
 	}
 
 	// loop over volume mounts
@@ -214,7 +212,7 @@ func (k *KubernetesDriver) runContainer(
 
 	pod.Spec.ServiceAccountName = serviceAccount
 	pod.Spec.NodeSelector = nodeSelector
-	pod.Spec.InitContainers = append(initContainer, pod.Spec.InitContainers...)
+	pod.Spec.InitContainers = initContainers
 	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged, k.options.DangerouslyOverrideImage, k.options.StrictSecurity)
 	pod.Spec.Volumes = getVolumes(pod, id)
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever

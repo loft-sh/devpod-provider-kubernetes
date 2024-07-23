@@ -8,9 +8,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (k *KubernetesDriver) getInitContainer(options *driver.RunOptions) ([]corev1.Container, error) {
-	commands := []string{}
+func (k *KubernetesDriver) getInitContainers(options *driver.RunOptions, pod *corev1.Pod, initialize bool) ([]corev1.Container, error) {
+	if !initialize {
+		retContainers := []corev1.Container{}
+		// don't build init container and clean up existing one if defined
+		for _, container := range pod.Spec.InitContainers {
+			if container.Name == InitContainerName {
+				continue
+			}
+			retContainers = append(retContainers, container)
+		}
 
+		return retContainers, nil
+	}
+
+	commands := []string{}
 	// find the volume type mounts
 	volumeMounts := []corev1.VolumeMount{}
 	for idx, mount := range options.Mounts {
@@ -25,9 +37,20 @@ func (k *KubernetesDriver) getInitContainer(options *driver.RunOptions) ([]corev
 		commands = append(commands, fmt.Sprintf(`cp -a %s/. %s/ || true`, strings.TrimRight(copyFrom, "/"), strings.TrimRight(volumeMount.MountPath, "/")))
 	}
 
+	retContainers := []corev1.Container{}
+	// merge with existing init container if it exists
+	var existingInitContainer *corev1.Container
+	for i, container := range pod.Spec.InitContainers {
+		if container.Name == InitContainerName {
+			existingInitContainer = &pod.Spec.InitContainers[i]
+		} else {
+			retContainers = append(retContainers, container)
+		}
+	}
+
 	// check if there is at least one mount
 	if len(volumeMounts) == 0 {
-		return nil, nil
+		return retContainers, nil
 	}
 
 	securityContext := &corev1.SecurityContext{
@@ -39,16 +62,29 @@ func (k *KubernetesDriver) getInitContainer(options *driver.RunOptions) ([]corev
 		securityContext = nil
 	}
 
-	return []corev1.Container{
-		{
-			Name:            "devpod-init",
-			Image:           options.Image,
-			Command:         []string{"sh"},
-			Args:            []string{"-c", strings.Join(commands, "\n") + "\n"},
-			Resources:       parseResources(k.options.HelperResources, k.Log),
-			VolumeMounts:    volumeMounts,
-			SecurityContext: securityContext,
-		},
-	}, nil
+	initContainer := corev1.Container{
+		Name:            InitContainerName,
+		Image:           options.Image,
+		Command:         []string{"sh"},
+		Args:            []string{"-c", strings.Join(commands, "\n") + "\n"},
+		Resources:       parseResources(k.options.HelperResources, k.Log),
+		VolumeMounts:    volumeMounts,
+		SecurityContext: securityContext,
+	}
+
+	if existingInitContainer != nil {
+		initContainer.Env = append(existingInitContainer.Env, initContainer.Env...)
+		initContainer.EnvFrom = existingInitContainer.EnvFrom
+		initContainer.Ports = existingInitContainer.Ports
+		initContainer.VolumeMounts = append(existingInitContainer.VolumeMounts, initContainer.VolumeMounts...)
+		initContainer.ImagePullPolicy = existingInitContainer.ImagePullPolicy
+
+		if initContainer.SecurityContext == nil && existingInitContainer.SecurityContext != nil {
+			initContainer.SecurityContext = existingInitContainer.SecurityContext
+		}
+	}
+	retContainers = append(retContainers, initContainer)
+
+	return retContainers, nil
 
 }
