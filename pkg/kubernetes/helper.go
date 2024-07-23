@@ -57,22 +57,14 @@ func parseResources(resourceString string, log log.Logger) corev1.ResourceRequir
 }
 
 func getPodTemplate(manifest string) (*corev1.Pod, error) {
-	_, err := os.Stat(manifest)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// try to parse inline template
-			pod := &corev1.Pod{}
-			err = yaml.Unmarshal([]byte(manifest), pod)
-			if err != nil {
-				return nil, errors.Wrap(err, "unmarshal pod template")
-			}
-
-			return pod, nil
-		}
-
-		return nil, err
+	// check if manifest is inline yaml
+	pod := &corev1.Pod{}
+	err := yaml.Unmarshal([]byte(manifest), pod)
+	if err == nil {
+		return pod, nil
 	}
 
+	// check if manifest is path
 	p, err := filepath.Abs(manifest)
 	if err != nil {
 		return nil, err
@@ -81,7 +73,6 @@ func getPodTemplate(manifest string) (*corev1.Pod, error) {
 	if err != nil {
 		return nil, err
 	}
-	pod := &corev1.Pod{}
 	err = yaml.Unmarshal(body, pod)
 	if err != nil {
 		return nil, errors.Wrap(err, "unmarshal pod template")
