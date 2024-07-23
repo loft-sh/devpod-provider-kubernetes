@@ -18,6 +18,7 @@ import (
 )
 
 const DevContainerName = "devpod"
+const InitContainerName = "devpod-init"
 
 const (
 	DevPodCreatedLabel      = "devpod.sh/created"
@@ -130,7 +131,7 @@ func (k *KubernetesDriver) runContainer(
 	// get init container
 	var initContainer []corev1.Container
 	if initialize {
-		initContainer, err = k.getInitContainer(options)
+		initContainer, err = k.getInitContainer(options, pod)
 		if err != nil {
 			return errors.Wrap(err, "build init container")
 		}
