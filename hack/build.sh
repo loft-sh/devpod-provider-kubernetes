@@ -32,6 +32,10 @@ done
 
 echo "Building version: ${BUILD_VERSION}"
 
+if [[ -z "${GITHUB_REPOSITORY}" ]]; then
+    GITHUB_REPOSITORY="loft-sh/devpod-provider-kubernetes"
+fi
+
 if [[ -z "${PROVIDER_BUILD_PLATFORMS}" ]]; then
     PROVIDER_BUILD_PLATFORMS="linux windows darwin"
 fi
@@ -69,4 +73,4 @@ for OS in ${PROVIDER_BUILD_PLATFORMS[@]}; do
   done
 done
 
-go run -mod vendor "${PROVIDER_ROOT}/hack/provider/main.go" ${RELEASE_VERSION} ${BUILD_VERSION} ${PROVIDER_ROOT} > "${PROVIDER_ROOT}/release/provider.yaml"
+go run -mod vendor "${PROVIDER_ROOT}/hack/provider/main.go" ${RELEASE_VERSION} ${BUILD_VERSION} ${PROVIDER_ROOT} ${GITHUB_REPOSITORY} > "${PROVIDER_ROOT}/release/provider.yaml"
