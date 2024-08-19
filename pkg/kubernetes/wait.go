@@ -59,9 +59,23 @@ func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 				return false, fmt.Errorf("pod '%s' init container '%s' is terminated: %s (%s)", id, c.Name, c.State.Terminated.Message, c.State.Terminated.Reason)
 			}
 
-			if IsRunning(containerStatus) {
-				throttledLogger.Infof("Waiting, since pod '%s' init container '%s' is running", id, c.Name)
-				return false, nil
+			container, err := getContainer(pod.Spec.InitContainers, c.Name)
+			if err != nil {
+				throttledLogger.Infof("Could not find container '%s'", c.Name)
+				return false, err
+			}
+
+			restartable := restartableInitContainer(container.RestartPolicy)
+			if restartable {
+				if !IsStarted(containerStatus) || !IsReady(containerStatus) {
+					throttledLogger.Infof("Waiting, since pod '%s' init container '%s' is not ready yet", id, c.Name)
+					return false, nil
+				}
+			} else {
+				if IsRunning(containerStatus) {
+					throttledLogger.Infof("Waiting, since pod '%s' init container '%s' is running", id, c.Name)
+					return false, nil
+				}
 			}
 		}
 
@@ -122,6 +136,20 @@ func (k *KubernetesDriver) getPod(ctx context.Context, id string) (*corev1.Pod, 
 	}
 
 	return pod, nil
+}
+
+func getContainer(containers []corev1.Container, name string) (*corev1.Container, error) {
+	for _, c := range containers {
+		if c.Name == name {
+			return &c, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find pod container with name %s", name)
+}
+
+func restartableInitContainer(p *corev1.ContainerRestartPolicy) bool {
+	return p != nil && *p == corev1.ContainerRestartPolicyAlways
 }
 
 func (k *KubernetesDriver) waitPodDeleted(ctx context.Context, id string) error {

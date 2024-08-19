@@ -14,6 +14,10 @@ func IsTerminated(status *corev1.ContainerStatus) bool {
 	return status.State.Terminated != nil
 }
 
+func IsStarted(status *corev1.ContainerStatus) bool {
+	return status.Started != nil && *status.Started
+}
+
 func IsRunning(status *corev1.ContainerStatus) bool {
 	return status.State.Running != nil
 }
