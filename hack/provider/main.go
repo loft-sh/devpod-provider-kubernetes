@@ -26,8 +26,8 @@ func providerConfigPath(buildVersion string) string {
 }
 
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "Expected release version, build version and project root as arguments")
+	if len(os.Args) != 5 {
+		fmt.Fprintln(os.Stderr, "Expected release version, build version, project root and GitHub repository as arguments")
 		os.Exit(1)
 		return
 	}
@@ -35,6 +35,7 @@ func main() {
 	releaseVersion := os.Args[1]
 	buildVersion := os.Args[2]
 	projectRoot := os.Args[3]
+	assetRepository := os.Args[4]
 
 	content, err := os.ReadFile(providerConfigPath(buildVersion))
 	if err != nil {
@@ -45,6 +46,8 @@ func main() {
 
 	if buildVersion == "dev" {
 		replaced = strings.Replace(replaced, "##PROJECT_ROOT##", projectRoot, -1)
+	} else {
+		replaced = strings.Replace(replaced, "##ASSET_REPOSITORY##", assetRepository, -1)
 	}
 
 	for k, v := range checksumMap {
