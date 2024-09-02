@@ -35,6 +35,7 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 	}
 	// parse pod manifest template if provided
 	if len(k.options.ArchDetectionPodManifestTemplate) > 0 {
+		k.Log.Debugf("trying to get arch detection pod template manifest from %s", k.options.ArchDetectionPodManifestTemplate)
 		p, err := getPodTemplate(k.options.ArchDetectionPodManifestTemplate)
 		if err != nil {
 			return "", err
