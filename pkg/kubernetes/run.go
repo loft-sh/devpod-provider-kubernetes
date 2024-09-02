@@ -122,6 +122,7 @@ func (k *KubernetesDriver) runContainer(
 		},
 	}
 	if len(k.options.PodManifestTemplate) > 0 {
+		k.Log.Debugf("trying to get pod template manifest from %s", k.options.PodManifestTemplate)
 		pod, err = getPodTemplate(k.options.PodManifestTemplate)
 		if err != nil {
 			return err

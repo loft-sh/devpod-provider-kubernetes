@@ -8,7 +8,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/loft-sh/log"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -59,8 +58,8 @@ func parseResources(resourceString string, log log.Logger) corev1.ResourceRequir
 func getPodTemplate(manifest string) (*corev1.Pod, error) {
 	// check if manifest is inline yaml
 	pod := &corev1.Pod{}
-	err := yaml.Unmarshal([]byte(manifest), pod)
-	if err == nil {
+	errInline := yaml.Unmarshal([]byte(manifest), pod)
+	if errInline == nil {
 		return pod, nil
 	}
 
@@ -74,11 +73,11 @@ func getPodTemplate(manifest string) (*corev1.Pod, error) {
 		return nil, err
 	}
 	err = yaml.Unmarshal(body, pod)
-	if err != nil {
-		return nil, errors.Wrap(err, "unmarshal pod template")
+	if err == nil {
+		return pod, nil
 	}
 
-	return pod, nil
+	return nil, fmt.Errorf("parsing pod tempate failed failed: %w (inline) or %w (file)", errInline, err)
 }
 
 func parseLabels(str string) (map[string]string, error) {
