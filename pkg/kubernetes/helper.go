@@ -66,11 +66,11 @@ func getPodTemplate(manifest string) (*corev1.Pod, error) {
 	// check if manifest is path
 	p, err := filepath.Abs(manifest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing pod tempate failed failed: %w (inline) or %w (file)", errInline, err)
 	}
 	body, err := os.ReadFile(p)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing pod tempate failed failed: %w (inline) or %w (file)", errInline, err)
 	}
 	err = yaml.Unmarshal(body, pod)
 	if err == nil {
