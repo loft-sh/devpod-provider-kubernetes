@@ -237,10 +237,11 @@ func (k *KubernetesDriver) runContainer(
 
 		// ensure we have a pod affinity, and in that case we have, just add ours
 		if pod.Spec.Affinity == nil || pod.Spec.Affinity.PodAffinity == nil {
-			pod.Spec.Affinity = &corev1.Affinity{
-				PodAffinity: &corev1.PodAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{},
-				},
+			if pod.Spec.Affinity == nil {
+				pod.Spec.Affinity = &corev1.Affinity{}
+			}
+			pod.Spec.Affinity.PodAffinity = &corev1.PodAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{},
 			}
 		}
 
