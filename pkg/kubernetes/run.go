@@ -19,6 +19,8 @@ import (
 
 const DevContainerName = "devpod"
 const InitContainerName = "devpod-init"
+const cacheClaimName = "dockerless-cache"
+const cacheVolumeName = "devpod-cache"
 
 const (
 	DevPodCreatedLabel      = "devpod.sh/created"
@@ -64,7 +66,7 @@ func (k *KubernetesDriver) RunDevContainer(
 
 	if pvc == nil {
 		if options == nil {
-			return fmt.Errorf("No options provided and no persistent volume claim found for workspace '%s'", workspaceId)
+			return fmt.Errorf("no options provided and no persistent volume claim found for workspace '%s'", workspaceId)
 		}
 
 		// create persistent volume claim
@@ -79,6 +81,21 @@ func (k *KubernetesDriver) RunDevContainer(
 	// reuse driver.RunOptions from existing workspace if none provided
 	if options == nil && containerInfo != nil && containerInfo.Options != nil {
 		options = containerInfo.Options
+	}
+
+	cachePVC, _, err := k.getDevContainerPvc(ctx, cacheClaimName)
+	if err != nil {
+		return err
+	}
+	if cachePVC == nil {
+		if options == nil {
+			return fmt.Errorf("no options provided and no persistent volume claim found for workspace '%s'", workspaceId)
+		}
+		// create persistent volume claim for cache
+		err = k.createPersistentVolumeClaim(ctx, cacheClaimName, options)
+		if err != nil {
+			return err
+		}
 	}
 
 	// create dev container
@@ -425,6 +442,14 @@ func getVolumes(pod *corev1.Pod, id string) []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: cacheVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: cacheClaimName,
+				},
+			},
+		},
 	}
 
 	if pod.Spec.Volumes != nil {
@@ -439,9 +464,14 @@ func getVolumeMount(idx int, mount *config.Mount) corev1.VolumeMount {
 	if mount.Type == "volume" && mount.Source != "" {
 		subPath = mount.Source
 	}
+	// Catch special case for cache and use cluster wide volume name instead of isolated by workspace
+	name := "devpod"
+	if strings.HasSuffix(mount.Source, "cache") {
+		name = cacheVolumeName
+	}
 
 	return corev1.VolumeMount{
-		Name:      "devpod",
+		Name:      name,
 		MountPath: mount.Target,
 		SubPath:   fmt.Sprintf("devpod/%s", subPath),
 	}
