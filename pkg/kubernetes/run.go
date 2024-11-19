@@ -120,6 +120,9 @@ func (k *KubernetesDriver) runContainer(
 			Kind:       "Pod",
 			APIVersion: corev1.SchemeGroupVersion.String(),
 		},
+		Spec: corev1.PodSpec{
+			RestartPolicy: corev1.RestartPolicyNever,
+		},
 	}
 	if len(k.options.PodManifestTemplate) > 0 {
 		k.Log.Debugf("trying to get pod template manifest from %s", k.options.PodManifestTemplate)
@@ -216,7 +219,6 @@ func (k *KubernetesDriver) runContainer(
 	pod.Spec.InitContainers = initContainers
 	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged, k.options.DangerouslyOverrideImage, k.options.StrictSecurity)
 	pod.Spec.Volumes = getVolumes(pod, id)
-	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
 	affinity := false
 	stdout := &bytes.Buffer{}
