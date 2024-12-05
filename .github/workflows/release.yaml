@@ -7,7 +7,7 @@ on:
 jobs:
   publish-cli:
     if: startsWith(github.ref, 'refs/tags/v') == true
-    runs-on: macos-12
+    runs-on: ubuntu-22.04
     steps:
       - name: Set up Go 1.21
         uses: actions/setup-go@v2
