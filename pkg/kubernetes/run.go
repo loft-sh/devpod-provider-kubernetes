@@ -440,7 +440,7 @@ func getVolumes(pod *corev1.Pod, id string) []corev1.Volume {
 func getVolumeMount(idx int, mount *config.Mount) corev1.VolumeMount {
 	subPath := strconv.Itoa(idx)
 	if mount.Type == "volume" && mount.Source != "" {
-		subPath = mount.Source
+		subPath = strings.TrimPrefix(mount.Source, "/")
 	}
 
 	return corev1.VolumeMount{
