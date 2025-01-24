@@ -77,17 +77,25 @@ func (k *KubernetesDriver) buildPersistentVolumeClaim(
 		labels[k] = v
 	}
 
+	annotations := map[string]string{}
+	annotations[DevPodInfoAnnotation] = containerInfo
+	extraAnnotations, err := parseLabels(k.options.PvcAnnotations)
+	if err != nil {
+		k.Log.Error("Failed to parse annotations from PVC_ANNOTATIONS option: %v", err)
+	}
+	for k, v := range extraAnnotations {
+		annotations[k] = v
+	}
+
 	pvc := &corev1.PersistentVolumeClaim{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "PersistentVolumeClaim",
 			APIVersion: corev1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   id,
-			Labels: labels,
-			Annotations: map[string]string{
-				DevPodInfoAnnotation: containerInfo,
-			},
+			Name:        id,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: accessMode,
