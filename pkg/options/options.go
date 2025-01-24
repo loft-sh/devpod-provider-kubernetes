@@ -31,6 +31,7 @@ type ComparableOptions struct {
 
 	DiskSize             string `json:"diskSize,omitempty"`
 	PvcAccessMode        string `json:"pvcAccessMode,omitempty"`
+	PvcAnnotations       string `json:"pvcAnnotations,omitempty"`
 	NodeSelector         string `json:"nodeSelector,omitempty"`
 	Resources            string `json:"resources,omitempty"`
 	WorkspaceVolumeMount string `json:"workspaceVolumeMount,omitempty"`
@@ -40,7 +41,7 @@ type ComparableOptions struct {
 	Labels                           string `json:"labels,omitempty"`
 
 	DangerouslyOverrideImage string `json:"dangerouslyOverrideImage,omitempty"`
-	StrictSecurity           bool   `json:"strictSecurity,omitEmpty"`
+	StrictSecurity           bool   `json:"strictSecurity,omitempty"`
 }
 
 func FromEnv() (*Options, error) {
@@ -76,6 +77,7 @@ func FromEnv() (*Options, error) {
 	retOptions.StrictSecurity = os.Getenv("STRICT_SECURITY") == "true"
 	retOptions.ArchDetectionPodManifestTemplate = os.Getenv("ARCH_DETECTION_POD_MANIFEST_TEMPLATE")
 	retOptions.WorkspaceVolumeMount = os.Getenv("WORKSPACE_VOLUME_MOUNT")
+	retOptions.PvcAnnotations = os.Getenv("PVC_ANNOTATIONS")
 
 	return retOptions, nil
 }

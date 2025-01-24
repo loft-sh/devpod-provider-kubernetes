@@ -22,6 +22,7 @@ optionGroups:
       - INACTIVITY_TIMEOUT
       - STORAGE_CLASS
       - PVC_ACCESS_MODE
+      - PVC_ANNOTATIONS
       - RESOURCES
       - POD_MANIFEST_TEMPLATE
       - ARCH_DETECTION_POD_MANIFEST_TEMPLATE
@@ -85,6 +86,9 @@ options:
     global: true
   PVC_ACCESS_MODE:
     description: If defined, DevPod will use the given access mode to create the persistent volume claim. You will need to ensure the storage class support the given access mode!. E.g. RWO or ROX or RWX or RWOP
+    global: true
+  PVC_ANNOTATIONS:
+    description: If defined, DevPod will use add the given annotations to the main workspace pvc
     global: true
   NODE_SELECTOR:
     description: The node selector to use for the workspace pod. E.g. my-label=value,my-label-2=value-2
