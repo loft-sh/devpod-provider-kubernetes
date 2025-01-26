@@ -32,6 +32,9 @@ type Driver interface {
 
 	// GetContainerLogs returns the logs of the devcontainer
 	GetDevContainerLogs(ctx context.Context, workspaceID string, stdout io.Writer, stderr io.Writer) error
+
+	// StopDevContainer stops the devcontainer
+	RenderTemplate(ctx context.Context, workspaceID string, raw bool) error
 }
 
 type ReprovisioningDriver interface {

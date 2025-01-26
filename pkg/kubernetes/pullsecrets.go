@@ -41,9 +41,11 @@ func (k *KubernetesDriver) EnsurePullSecret(
 		}
 	}
 
-	err = k.createPullSecret(ctx, pullSecretName, dockerCredentials)
+	out, err := k.createPullSecret(ctx, pullSecretName, dockerCredentials)
 	if err != nil {
 		return false, err
+	} else if k.isDryRun() {
+		k.dryRun.AddManifest(out)
 	}
 
 	k.Log.Infof("Pull secret '%s' created", pullSecretName)
@@ -109,6 +111,9 @@ func (k *KubernetesDriver) secretExists(
 	ctx context.Context,
 	pullSecretName string,
 ) bool {
+	if k.isDryRun() {
+		return false
+	}
 	args := []string{
 		"get",
 		"secret",
@@ -126,14 +131,13 @@ func (k *KubernetesDriver) createPullSecret(
 	ctx context.Context,
 	pullSecretName string,
 	dockerCredentials *docker.Credentials,
-) error {
-
+) ([]byte, error) {
 	authToken := dockerCredentials.AuthToken()
 	email := "noreply@loft.sh"
 
 	encodedSecretData, err := PreparePullSecretData(dockerCredentials.ServerURL, authToken, email)
 	if err != nil {
-		return perrors.Wrap(err, "prepare pull secret data")
+		return nil, fmt.Errorf("prepare pull secret data: %w", err)
 	}
 
 	args := []string{
@@ -147,8 +151,8 @@ func (k *KubernetesDriver) createPullSecret(
 
 	out, err := k.buildCmd(ctx, args).CombinedOutput()
 	if err != nil {
-		return perrors.Wrapf(err, "create pull secret: %s", string(out))
+		return nil, fmt.Errorf("create pull secret: %s: %w", string(out), err)
 	}
 
-	return nil
+	return out, nil
 }

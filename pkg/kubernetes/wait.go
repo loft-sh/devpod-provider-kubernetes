@@ -120,6 +120,9 @@ func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 }
 
 func (k *KubernetesDriver) getPod(ctx context.Context, id string) (*corev1.Pod, error) {
+	if k.isDryRun() {
+		return nil, nil
+	}
 	// try to find pod
 	out, err := k.buildCmd(ctx, []string{"get", "pod", id, "--ignore-not-found", "-o", "json"}).Output()
 	if err != nil {

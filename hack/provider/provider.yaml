@@ -162,6 +162,7 @@ agent:
     runDevContainer: '"${KUBERNETES_PROVIDER}" run'
     deleteDevContainer: '"${KUBERNETES_PROVIDER}" delete'
     targetArchitecture: '"${KUBERNETES_PROVIDER}" target-architecture'
+    renderTemplate: '"${KUBERNETES_PROVIDER}" render-template'
     canReprovision: true
 exec:
   command: |-

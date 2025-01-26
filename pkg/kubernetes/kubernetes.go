@@ -13,6 +13,7 @@ import (
 	"github.com/loft-sh/devpod/pkg/devcontainer/config"
 	"github.com/loft-sh/devpod/pkg/driver"
 	"github.com/loft-sh/log"
+
 	perrors "github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -50,6 +51,9 @@ type KubernetesDriver struct {
 	kubeConfig string
 	namespace  string
 	context    string
+
+	dryRun *dryRunConfig
+	output string
 
 	options *options.Options
 	Log     log.Logger
@@ -216,6 +220,66 @@ func (k *KubernetesDriver) GetDevContainerLogs(ctx context.Context, workspaceID 
 	return k.runCommand(ctx, args, nil, stdout, stderr)
 }
 
+func (k *KubernetesDriver) RenderTemplate(ctx context.Context, workspaceID string, verbose bool) error {
+	k.dryRun = NewDryRunConfig(DryRunClient)
+	k.output = "yaml"
+
+	if verbose {
+		providerOptionsMsg := "Rendering template with provider options:\n\n"
+		providerOptionsMsg += fmt.Sprintf("Namespace: %s\n", k.namespace)
+		providerOptionsMsg += fmt.Sprintf("Context: %s\n", k.context)
+		providerOptionsMsg += fmt.Sprintf("Kubectl: %s\n", k.kubectl)
+		providerOptionsMsg += fmt.Sprintf("KubeConfig: %s\n", k.kubeConfig)
+		providerOptionsMsg += "\n"
+		if k.options != nil {
+			providerOptionsMsg += k.options.Display()
+		}
+		k.Log.Info(strings.TrimSpace(providerOptionsMsg) + "\n")
+	}
+
+	// TODO: This could potentially be done through main DevPod as well
+	// for more realistic results
+	privileged := false
+	fakeRunOptions := driver.RunOptions{
+		UID:         "FAKE-UID",
+		User:        "FAKE-USER",
+		Image:       "devpod-sh:fake",
+		Entrypoint:  "entrypoint",
+		Cmd:         []string{"cmd"},
+		Env:         map[string]string{},
+		CapAdd:      []string{},
+		SecurityOpt: []string{},
+		Labels:      []string{},
+		Privileged:  &privileged,
+		WorkspaceMount: &config.Mount{
+			Target: "/workspaces/FAKE",
+			Type:   "volume",
+			Source: "FAKE",
+		},
+		Mounts: []*config.Mount{},
+	}
+
+	// We want to ignore all of the logs aside from out own
+	logger := log.Default.ErrorStreamOnly()
+	bufferLogger := NewBufferLogger(logger)
+	k.Log = bufferLogger
+	err := k.RunDevContainer(ctx, workspaceID, &fakeRunOptions)
+	if err != nil && verbose {
+		logger.Warnf("Encountered an error, manifests might not be complete: %v", err)
+		bufferLogger.Flush()
+	}
+	out := strings.Builder{}
+	for i, v := range k.dryRun.manifests {
+		if i != 0 {
+			out.WriteString("---")
+		}
+		out.WriteString(strings.TrimSpace(v))
+	}
+	logger.Info(out.String())
+
+	return err // still return error to signal to consuming process that we encountered an error during rendering
+}
+
 func (k *KubernetesDriver) buildCmd(ctx context.Context, args []string) *exec.Cmd {
 	newArgs := []string{}
 	if k.namespace != "" {
@@ -227,6 +291,13 @@ func (k *KubernetesDriver) buildCmd(ctx context.Context, args []string) *exec.Cm
 	if k.context != "" {
 		newArgs = append(newArgs, "--context", k.context)
 	}
+	if k.dryRun != nil {
+		newArgs = append(newArgs, fmt.Sprintf("%s=%s", "--dry-run", k.dryRun.strategy))
+	}
+	if k.output != "" {
+		newArgs = append(newArgs, fmt.Sprintf("%s=%s", "--output", k.output))
+	}
+
 	newArgs = append(newArgs, args...)
 	k.Log.Debugf("Run command: %s %s", k.kubectl, strings.Join(newArgs, " "))
 	return exec.CommandContext(ctx, k.kubectl, newArgs...)
@@ -243,4 +314,8 @@ func (k *KubernetesDriver) runCommandWithDir(ctx context.Context, dir string, ar
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd.Run()
+}
+
+func (k *KubernetesDriver) isDryRun() bool {
+	return k.dryRun != nil
 }

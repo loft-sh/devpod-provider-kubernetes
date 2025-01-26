@@ -17,20 +17,20 @@ func (k *KubernetesDriver) createPersistentVolumeClaim(
 	ctx context.Context,
 	id string,
 	options *driver.RunOptions,
-) error {
+) ([]byte, error) {
 	pvcString, err := k.buildPersistentVolumeClaim(id, options)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	k.Log.Infof("Create Persistent Volume Claim '%s'", id)
 	buf := &bytes.Buffer{}
 	err = k.runCommand(ctx, []string{"create", "-f", "-"}, strings.NewReader(pvcString), buf, buf)
 	if err != nil {
-		return errors.Wrapf(err, "create pvc: %s", buf.String())
+		return nil, errors.Wrapf(err, "create pvc: %s", buf.String())
 	}
 
-	return nil
+	return buf.Bytes(), nil
 }
 
 func (k *KubernetesDriver) buildPersistentVolumeClaim(
@@ -99,7 +99,7 @@ func (k *KubernetesDriver) buildPersistentVolumeClaim(
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
 			AccessModes: accessMode,
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: map[corev1.ResourceName]resource.Quantity{
 					corev1.ResourceStorage: quantity,
 				},

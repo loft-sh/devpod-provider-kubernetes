@@ -52,28 +52,15 @@ func (k *KubernetesDriver) RunDevContainer(
 		err := k.runCommand(ctx, []string{"create", "ns", k.namespace}, nil, buf, buf)
 		if err != nil {
 			k.Log.Debugf("Error creating namespace: %s%v", buf.String(), err)
+		} else if k.isDryRun() {
+			k.dryRun.AddManifest(buf.Bytes())
 		}
 	}
 
 	// check if persistent volume claim already exists
-	initialize := false
-	pvc, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
+	containerInfo, initialize, err := k.ensurePVC(ctx, workspaceId, options)
 	if err != nil {
 		return err
-	}
-
-	if pvc == nil {
-		if options == nil {
-			return fmt.Errorf("No options provided and no persistent volume claim found for workspace '%s'", workspaceId)
-		}
-
-		// create persistent volume claim
-		err = k.createPersistentVolumeClaim(ctx, workspaceId, options)
-		if err != nil {
-			return err
-		}
-
-		initialize = true
 	}
 
 	// reuse driver.RunOptions from existing workspace if none provided
@@ -88,6 +75,23 @@ func (k *KubernetesDriver) RunDevContainer(
 	}
 
 	return nil
+}
+
+func (k *KubernetesDriver) StartDevContainer(ctx context.Context, workspaceId string) error {
+	workspaceId = getID(workspaceId)
+	_, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
+	if err != nil {
+		return err
+	} else if containerInfo == nil {
+		return fmt.Errorf("persistent volume '%s' not found", workspaceId)
+	}
+
+	return k.runContainer(
+		ctx,
+		workspaceId,
+		containerInfo.Options,
+		false,
+	)
 }
 
 func (k *KubernetesDriver) runContainer(
@@ -331,6 +335,8 @@ func (k *KubernetesDriver) runPod(ctx context.Context, id string, pod *corev1.Po
 	err = k.runCommand(ctx, []string{"create", "-f", "-"}, strings.NewReader(string(podRaw)), buf, buf)
 	if err != nil {
 		return errors.Wrapf(err, "create pod: %s", buf.String())
+	} else if k.isDryRun() {
+		k.dryRun.AddManifest(buf.Bytes())
 	}
 
 	// wait for pod running
@@ -495,27 +501,43 @@ func getNodeSelector(pod *corev1.Pod, rawNodeSelector string) (map[string]string
 	return nodeSelector, nil
 }
 
-func (k *KubernetesDriver) StartDevContainer(ctx context.Context, workspaceId string) error {
-	workspaceId = getID(workspaceId)
-	_, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
-	if err != nil {
-		return err
-	} else if containerInfo == nil {
-		return fmt.Errorf("persistent volume '%s' not found", workspaceId)
-	}
-
-	return k.runContainer(
-		ctx,
-		workspaceId,
-		containerInfo.Options,
-		false,
-	)
-}
-
 func getID(workspaceID string) string {
 	return "devpod-" + workspaceID
 }
 
 func getPullSecretsName(workspaceID string) string {
 	return fmt.Sprintf("devpod-pull-secret-%s", workspaceID)
+}
+
+func (k *KubernetesDriver) ensurePVC(ctx context.Context, workspaceID string, options *driver.RunOptions) (*DevContainerInfo, bool, error) {
+	if k.isDryRun() {
+		out, err := k.createPersistentVolumeClaim(ctx, workspaceID, options)
+		if err != nil {
+			return nil, false, fmt.Errorf("create pvc: %w", err)
+		} else {
+			k.dryRun.AddManifest(out)
+			return nil, true, nil
+		}
+	}
+
+	initialize := false
+	pvc, containerInfo, err := k.getDevContainerPvc(ctx, workspaceID)
+	if err != nil {
+		return nil, initialize, err
+	}
+	if pvc == nil {
+		if options == nil {
+			return containerInfo, initialize, fmt.Errorf("No options provided and no persistent volume claim found for workspace '%s'", workspaceID)
+		}
+
+		// create persistent volume claim
+		_, err = k.createPersistentVolumeClaim(ctx, workspaceID, options)
+		if err != nil {
+			return containerInfo, initialize, err
+		}
+
+		initialize = true
+	}
+
+	return containerInfo, initialize, nil
 }
