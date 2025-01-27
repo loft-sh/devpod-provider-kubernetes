@@ -22,7 +22,7 @@ func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 	}
 
 	var pod *corev1.Pod
-	err = wait.PollImmediate(time.Second, timeoutDuration, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, time.Second, timeoutDuration, true, func(ctx context.Context) (bool, error) {
 		var err error
 		pod, err = k.getPod(ctx, id)
 		if err != nil {
@@ -35,6 +35,19 @@ func (k *KubernetesDriver) waitPodRunning(ctx context.Context, id string) (*core
 		if pod.DeletionTimestamp != nil {
 			throttledLogger.Infof("Waiting, since pod '%s' is terminating", id)
 			return false, nil
+		}
+
+		// Let's print all conditions that are false to help people troubleshoot infra issues
+		for _, cond := range pod.Status.Conditions {
+			if cond.Status == corev1.ConditionFalse {
+				throttledLogger.Infof("Condition \"%s\" is %s", cond.Type, cond.Status)
+				if cond.Reason != "" {
+					throttledLogger.Infof("%s Reason: %s", cond.Type, cond.Reason)
+				}
+				if cond.Message != "" {
+					throttledLogger.Infof("%s Message: %s", cond.Type, cond.Message)
+				}
+			}
 		}
 
 		// check pod status
