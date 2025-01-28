@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 )
 
 type Options struct {
@@ -93,4 +94,36 @@ func fromEnvOrError(name string) (string, error) {
 	}
 
 	return val, nil
+}
+
+func (o *Options) Display() string {
+	var result strings.Builder
+
+	result.WriteString(fmt.Sprintf("DevContainerID: %s\n", o.DevContainerID))
+	result.WriteString(fmt.Sprintf("KubernetesPullSecretsEnabled: %s\n", o.KubernetesPullSecretsEnabled))
+	result.WriteString(fmt.Sprintf("CreateNamespace: %s\n", o.CreateNamespace))
+	result.WriteString(fmt.Sprintf("ClusterRole: %s\n", o.ClusterRole))
+	result.WriteString(fmt.Sprintf("ServiceAccount: %s\n", o.ServiceAccount))
+
+	result.WriteString(fmt.Sprintf("HelperImage: %s\n", o.HelperImage))
+	result.WriteString(fmt.Sprintf("HelperResources: %s\n", o.HelperResources))
+	result.WriteString(fmt.Sprintf("InactivityTimeout: %s\n", o.InactivityTimeout))
+	result.WriteString(fmt.Sprintf("StorageClass: %s\n", o.StorageClass))
+
+	result.WriteString(fmt.Sprintf("DiskSize: %s\n", o.DiskSize))
+	result.WriteString(fmt.Sprintf("PvcAccessMode: %s\n", o.PvcAccessMode))
+	result.WriteString(fmt.Sprintf("PvcAnnotations: %s\n", o.PvcAnnotations))
+	result.WriteString(fmt.Sprintf("NodeSelector: %s\n", o.NodeSelector))
+	result.WriteString(fmt.Sprintf("Resources: %s\n", o.Resources))
+	result.WriteString(fmt.Sprintf("WorkspaceVolumeMount: %s\n", o.WorkspaceVolumeMount))
+
+	result.WriteString(fmt.Sprintf("PodManifestTemplate: %s\n", o.PodManifestTemplate))
+	result.WriteString(fmt.Sprintf("ArchDetectionPodManifestTemplate: %s\n", o.ArchDetectionPodManifestTemplate))
+	result.WriteString(fmt.Sprintf("Labels: %s\n", o.Labels))
+
+	result.WriteString(fmt.Sprintf("DangerouslyOverrideImage: %s\n", o.DangerouslyOverrideImage))
+	result.WriteString(fmt.Sprintf("StrictSecurity: %v\n", o.StrictSecurity))
+
+	return result.String()
+
 }

@@ -13,8 +13,8 @@ import (
 )
 
 func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, serviceAccount string) error {
-	// try to find pvc
-	out, err := k.buildCmd(ctx, []string{"get", "serviceaccount", serviceAccount, "--ignore-not-found", "-o", "json"}).Output()
+	// try to find serviceaccount
+	out, err := k.findServiceAccount(ctx, serviceAccount)
 	if err != nil {
 		return command.WrapCommandError(out, err)
 	} else if len(out) == 0 {
@@ -38,12 +38,14 @@ func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, service
 		err = k.runCommand(ctx, []string{"create", "-f", "-"}, bytes.NewReader(serviceAccountRaw), buf, buf)
 		if err != nil {
 			return errors.Wrapf(err, "create service account: %s", buf.String())
+		} else if k.isDryRun() {
+			k.dryRun.AddManifest(buf.Bytes())
 		}
 	}
 
 	// try to find role binding
 	if k.options.ClusterRole != "" {
-		out, err = k.buildCmd(ctx, []string{"get", "rolebinding", id, "--ignore-not-found", "-o", "json"}).Output()
+		out, err = k.findRoleBinding(ctx, id)
 		if err != nil {
 			return command.WrapCommandError(out, err)
 		} else if len(out) == 0 {
@@ -78,9 +80,25 @@ func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, service
 			err = k.runCommand(ctx, []string{"create", "-f", "-"}, bytes.NewReader(roleBindingRaw), buf, buf)
 			if err != nil {
 				return errors.Wrapf(err, "create role binding: %s", buf.String())
+			} else if k.isDryRun() {
+				k.dryRun.AddManifest(buf.Bytes())
 			}
 		}
 	}
 
 	return nil
+}
+
+func (k *KubernetesDriver) findServiceAccount(ctx context.Context, serviceAccount string) ([]byte, error) {
+	if k.isDryRun() {
+		return nil, nil
+	}
+	return k.buildCmd(ctx, []string{"get", "serviceaccount", serviceAccount, "--ignore-not-found", "-o", "json"}).Output()
+}
+
+func (k *KubernetesDriver) findRoleBinding(ctx context.Context, id string) ([]byte, error) {
+	if k.isDryRun() {
+		return nil, nil
+	}
+	return k.buildCmd(ctx, []string{"get", "rolebinding", id, "--ignore-not-found", "-o", "json"}).Output()
 }
