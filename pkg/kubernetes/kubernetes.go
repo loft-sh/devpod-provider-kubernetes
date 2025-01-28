@@ -61,46 +61,12 @@ func (k *KubernetesDriver) FindDevContainer(ctx context.Context, workspaceId str
 	pvc, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
 	if err != nil {
 		return nil, err
-	}
-
-	return k.infoFromObject(ctx, pvc, containerInfo)
-}
-
-func (k *KubernetesDriver) getDevContainerPvc(ctx context.Context, id string) (*corev1.PersistentVolumeClaim, *DevContainerInfo, error) {
-	// try to find pvc
-	out, err := k.buildCmd(ctx, []string{"get", "pvc", id, "--ignore-not-found", "-o", "json"}).Output()
-	if err != nil {
-		return nil, nil, command.WrapCommandError(out, err)
-	} else if len(out) == 0 {
-		return nil, nil, nil
-	}
-
-	// try to unmarshal pvc
-	pvc := &corev1.PersistentVolumeClaim{}
-	err = json.Unmarshal(out, pvc)
-	if err != nil {
-		return nil, nil, perrors.Wrap(err, "unmarshal pvc")
-	} else if pvc.Annotations == nil || pvc.Annotations[DevPodInfoAnnotation] == "" {
-		return nil, nil, fmt.Errorf("pvc is missing dev container info annotation")
-	}
-
-	// get container info
-	containerInfo := &DevContainerInfo{}
-	err = json.Unmarshal([]byte(pvc.GetAnnotations()[DevPodInfoAnnotation]), containerInfo)
-	if err != nil {
-		return nil, nil, perrors.Wrap(err, "decode dev container info")
-	}
-
-	return pvc, containerInfo, nil
-}
-
-func (k *KubernetesDriver) infoFromObject(ctx context.Context, pvc *corev1.PersistentVolumeClaim, containerInfo *DevContainerInfo) (*config.ContainerDetails, error) {
-	if pvc == nil {
+	} else if pvc == nil {
 		return nil, nil
 	}
 
 	// check pod
-	pod, err := k.waitPodRunning(ctx, pvc.Name)
+	pod, err := k.getPod(ctx, pvc.Name)
 	if err != nil {
 		k.Log.Infof("Error finding pod: %v", err)
 		k.Log.Warn("If the pod does not come up automatically it is stuck in an error state. Recreate the workspace to recover from this")
@@ -130,6 +96,34 @@ func (k *KubernetesDriver) infoFromObject(ctx context.Context, pvc *corev1.Persi
 			Labels: config.ListToObject(containerInfo.Options.Labels),
 		},
 	}, nil
+}
+
+func (k *KubernetesDriver) getDevContainerPvc(ctx context.Context, id string) (*corev1.PersistentVolumeClaim, *DevContainerInfo, error) {
+	// try to find pvc
+	out, err := k.buildCmd(ctx, []string{"get", "pvc", id, "--ignore-not-found", "-o", "json"}).Output()
+	if err != nil {
+		return nil, nil, command.WrapCommandError(out, err)
+	} else if len(out) == 0 {
+		return nil, nil, nil
+	}
+
+	// try to unmarshal pvc
+	pvc := &corev1.PersistentVolumeClaim{}
+	err = json.Unmarshal(out, pvc)
+	if err != nil {
+		return nil, nil, perrors.Wrap(err, "unmarshal pvc")
+	} else if pvc.Annotations == nil || pvc.Annotations[DevPodInfoAnnotation] == "" {
+		return nil, nil, fmt.Errorf("pvc is missing dev container info annotation")
+	}
+
+	// get container info
+	containerInfo := &DevContainerInfo{}
+	err = json.Unmarshal([]byte(pvc.GetAnnotations()[DevPodInfoAnnotation]), containerInfo)
+	if err != nil {
+		return nil, nil, perrors.Wrap(err, "decode dev container info")
+	}
+
+	return pvc, containerInfo, nil
 }
 
 func (k *KubernetesDriver) StopDevContainer(ctx context.Context, workspaceId string) error {
