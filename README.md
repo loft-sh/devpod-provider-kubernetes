@@ -23,6 +23,26 @@ devpod up .
 
 You'll need to wait for the pod and environment setup.
 
+### Configuration Options
+
+#### Target Architecture
+
+You can specify the target architecture directly to avoid architecture detection pods and potential scheduling conflicts:
+
+```sh
+# Set target architecture via environment variable
+export TARGET_ARCHITECTURE=amd64  # or arm64
+devpod up .
+
+# Or via provider configuration
+devpod provider set-options kubernetes -o targetArchitecture=amd64
+```
+
+This is especially useful when:
+- You know the required architecture in advance
+- You want to avoid potential scheduling conflicts between architecture detection pods and devpods
+- You need to ensure pods are scheduled on nodes with specific architectures
+
 
 ## Testing locally
 1. Build the new version in a dev mode with some version tag (e.g. 0.0.1-dev)

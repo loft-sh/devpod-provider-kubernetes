@@ -17,7 +17,8 @@ type Options struct {
 }
 
 type ComparableOptions struct {
-	DevContainerID string `json:"devcontainerId,omitempty"`
+	DevContainerID     string `json:"devcontainerId,omitempty"`
+	TargetArchitecture string `json:"targetArchitecture,omitempty"`
 
 	KubernetesPullSecretsEnabled string `json:"kubernetesPullSecretsEnabled,omitempty"`
 	CreateNamespace              string `json:"createNamespace,omitempty"`
@@ -53,6 +54,8 @@ func FromEnv() (*Options, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	retOptions.TargetArchitecture = os.Getenv("TARGET_ARCHITECTURE")
 
 	retOptions.DiskSize = os.Getenv("DISK_SIZE")
 	retOptions.KubernetesContext = os.Getenv("KUBERNETES_CONTEXT")
