@@ -32,6 +32,10 @@ optionGroups:
       - LABELS
       - DOCKERLESS_DISABLED
       - DOCKERLESS_IMAGE
+      - WORKSPACE_VOLUME_MOUNT
+      - STRICT_SECURITY
+      - DANGEROUSLY_OVERRIDE_IMAGE
+      - POD_TIMEOUT
     name: "Advanced Options"
 options:
   DISK_SIZE:
