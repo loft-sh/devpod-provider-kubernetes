@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -140,10 +141,14 @@ func (k *KubernetesDriver) runContainer(
 
 	// loop over volume mounts
 	volumeMounts := []corev1.VolumeMount{getVolumeMount(0, mount)}
+	tmpfsVolumes := []corev1.Volume{}
+	fixMountOther(options.Mounts)
 	for idx, mount := range options.Mounts {
-		volumeMount := getVolumeMount(idx+1, mount)
 		if mount.Type == "bind" || mount.Type == "volume" {
-			volumeMounts = append(volumeMounts, volumeMount)
+			volumeMounts = append(volumeMounts, getVolumeMount(idx+1, mount))
+		} else if mount.Type == "tmpfs" {
+			volumeMounts = append(volumeMounts, getTmpfsVolumeMount(mount))
+			tmpfsVolumes = append(tmpfsVolumes, getTmpfsVolume(mount))
 		} else {
 			k.Log.Warnf("Unsupported mount type '%s' in mount '%s', will skip", mount.Type, mount.String())
 		}
@@ -218,7 +223,7 @@ func (k *KubernetesDriver) runContainer(
 	pod.Spec.NodeSelector = nodeSelector
 	pod.Spec.InitContainers = initContainers
 	pod.Spec.Containers = getContainers(pod, options.Image, options.Entrypoint, options.Cmd, envVars, volumeMounts, capabilities, resources, options.Privileged, k.options.DangerouslyOverrideImage, k.options.StrictSecurity)
-	pod.Spec.Volumes = getVolumes(pod, id)
+	pod.Spec.Volumes = getVolumes(pod, id, tmpfsVolumes)
 
 	affinity := false
 	stdout := &bytes.Buffer{}
@@ -418,7 +423,7 @@ func getContainers(
 	return retContainers
 }
 
-func getVolumes(pod *corev1.Pod, id string) []corev1.Volume {
+func getVolumes(pod *corev1.Pod, id string, tmpfsVolumes []corev1.Volume) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: "devpod",
@@ -429,6 +434,8 @@ func getVolumes(pod *corev1.Pod, id string) []corev1.Volume {
 			},
 		},
 	}
+
+	volumes = append(volumes, tmpfsVolumes...)
 
 	if pod.Spec.Volumes != nil {
 		volumes = append(volumes, pod.Spec.Volumes...)
@@ -493,6 +500,47 @@ func getNodeSelector(pod *corev1.Pod, rawNodeSelector string) (map[string]string
 	}
 
 	return nodeSelector, nil
+}
+
+func fixMountOther(mounts []*config.Mount) {
+	raw := os.Getenv("DEVCONTAINER_RUN_OPTIONS")
+	if raw == "" || raw == "null" {
+		return
+	}
+
+	var opts struct {
+		Mounts []json.RawMessage `json:"mounts,omitempty"`
+	}
+	if err := json.Unmarshal([]byte(raw), &opts); err != nil {
+		return
+	}
+
+	for i, rawMount := range opts.Mounts {
+		if i >= len(mounts) {
+			break
+		}
+		// If Other is already populated, nothing to fix.
+		if len(mounts[i].Other) > 0 {
+			continue
+		}
+		// Mounts can be either a JSON string ("source:target:type:...") or a
+		// JSON object. Only the object form is affected by the upstream bug —
+		// the string form goes through ParseMount which handles Other. So
+		// skip anything that isn't a JSON object.
+		var obj map[string]json.RawMessage
+		if err := json.Unmarshal(rawMount, &obj); err != nil {
+			continue
+		}
+		otherRaw, ok := obj["other"]
+		if !ok {
+			continue
+		}
+		var others []string
+		if err := json.Unmarshal(otherRaw, &others); err != nil {
+			continue
+		}
+		mounts[i].Other = others
+	}
 }
 
 func (k *KubernetesDriver) StartDevContainer(ctx context.Context, workspaceId string) error {
