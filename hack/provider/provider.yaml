@@ -23,6 +23,7 @@ optionGroups:
       - STORAGE_CLASS
       - PVC_ACCESS_MODE
       - PVC_ANNOTATIONS
+      - PVC_DATA_SOURCE
       - RESOURCES
       - POD_MANIFEST_TEMPLATE
       - ARCH_DETECTION_POD_MANIFEST_TEMPLATE
@@ -90,6 +91,8 @@ options:
   PVC_ANNOTATIONS:
     description: If defined, DevPod will use add the given annotations to the main workspace pvc
     global: true
+  PVC_DATA_SOURCE:
+    description: If defined, DevPod will clone this persistent volume claim into the workspace PVC. The source PVC must be in the same namespace and availability zone.
   NODE_SELECTOR:
     description: The node selector to use for the workspace pod. E.g. my-label=value,my-label-2=value-2
     global: true

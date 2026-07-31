@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 type Options struct {
@@ -32,6 +35,7 @@ type ComparableOptions struct {
 	DiskSize             string `json:"diskSize,omitempty"`
 	PvcAccessMode        string `json:"pvcAccessMode,omitempty"`
 	PvcAnnotations       string `json:"pvcAnnotations,omitempty"`
+	PvcDataSource        string `json:"pvcDataSource,omitempty"`
 	NodeSelector         string `json:"nodeSelector,omitempty"`
 	Resources            string `json:"resources,omitempty"`
 	WorkspaceVolumeMount string `json:"workspaceVolumeMount,omitempty"`
@@ -78,6 +82,13 @@ func FromEnv() (*Options, error) {
 	retOptions.ArchDetectionPodManifestTemplate = os.Getenv("ARCH_DETECTION_POD_MANIFEST_TEMPLATE")
 	retOptions.WorkspaceVolumeMount = os.Getenv("WORKSPACE_VOLUME_MOUNT")
 	retOptions.PvcAnnotations = os.Getenv("PVC_ANNOTATIONS")
+	retOptions.PvcDataSource = os.Getenv("PVC_DATA_SOURCE")
+	if retOptions.PvcDataSource != "" {
+		validationErrors := validation.IsDNS1123Subdomain(retOptions.PvcDataSource)
+		if len(validationErrors) > 0 {
+			return nil, fmt.Errorf("invalid PVC_DATA_SOURCE %q: %s", retOptions.PvcDataSource, strings.Join(validationErrors, "; "))
+		}
+	}
 
 	return retOptions, nil
 }

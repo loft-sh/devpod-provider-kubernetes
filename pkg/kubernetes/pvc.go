@@ -107,6 +107,12 @@ func (k *KubernetesDriver) buildPersistentVolumeClaim(
 			StorageClassName: storageClassName,
 		},
 	}
+	if k.options.PvcDataSource != "" {
+		pvc.Spec.DataSource = &corev1.TypedLocalObjectReference{
+			Kind: "PersistentVolumeClaim",
+			Name: k.options.PvcDataSource,
+		}
+	}
 
 	raw, err := json.Marshal(pvc)
 	if err != nil {
