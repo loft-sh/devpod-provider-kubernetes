@@ -97,6 +97,20 @@ var _ = ginkgo.Describe("PVC data source", func() {
 			return pod.Status.Phase, nil
 		}, 5*time.Minute, 2*time.Second).Should(gomega.Equal(corev1.PodSucceeded))
 
+		writerPod, err := client.CoreV1().Pods(namespace).Get(ctx, writerName, metav1.GetOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(writerPod.Spec.NodeName).NotTo(gomega.BeEmpty())
+		writerNode, err := client.CoreV1().Nodes().Get(ctx, writerPod.Spec.NodeName, metav1.GetOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+		nodeSelectorKey := corev1.LabelTopologyZone
+		nodeSelectorValue := writerNode.Labels[nodeSelectorKey]
+		if nodeSelectorValue == "" {
+			nodeSelectorKey = corev1.LabelHostname
+			nodeSelectorValue = writerNode.Labels[nodeSelectorKey]
+		}
+		gomega.Expect(nodeSelectorValue).NotTo(gomega.BeEmpty(), "writer node must have a zone or hostname label")
+
 		err = client.CoreV1().Pods(namespace).Delete(ctx, writerName, metav1.DeleteOptions{})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Eventually(func() bool {
@@ -110,6 +124,7 @@ var _ = ginkgo.Describe("PVC data source", func() {
 			"KUBERNETES_CONFIG":               kubeConfig,
 			"KUBERNETES_NAMESPACE":            namespace,
 			"KUBERNETES_PULL_SECRETS_ENABLED": "false",
+			"NODE_SELECTOR":                   fmt.Sprintf("%s=%s", nodeSelectorKey, nodeSelectorValue),
 			"PVC_DATA_SOURCE":                 sourceName,
 		})
 		providerOptions, err := provideroptions.FromEnv()
@@ -126,6 +141,10 @@ var _ = ginkgo.Describe("PVC data source", func() {
 			},
 		})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+
+		targetPod, err := client.CoreV1().Pods(namespace).Get(ctx, providerOptions.DevContainerID, metav1.GetOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(targetPod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(nodeSelectorKey, nodeSelectorValue))
 
 		gomega.Eventually(func() string {
 			raw, err := client.CoreV1().Pods(namespace).GetLogs(providerOptions.DevContainerID, &corev1.PodLogOptions{}).DoRaw(ctx)
