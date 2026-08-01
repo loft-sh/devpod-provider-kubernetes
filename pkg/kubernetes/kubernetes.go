@@ -113,8 +113,9 @@ func (k *KubernetesDriver) DeleteDevContainer(ctx context.Context, workspaceId s
 
 	// delete role binding & service account
 	if k.options.ClusterRole != "" {
-		k.Log.Infof("Delete role binding '%s'...", workspaceId)
-		out, err := k.buildCmd(ctx, []string{"delete", "rolebinding", workspaceId, "--ignore-not-found"}).CombinedOutput()
+		roleBindingName := k.getRoleBindingName(workspaceId)
+		k.Log.Infof("Delete role binding '%s'...", roleBindingName)
+		out, err := k.buildCmd(ctx, []string{"delete", "rolebinding", roleBindingName, "--ignore-not-found"}).CombinedOutput()
 		if err != nil {
 			return perrors.Wrapf(err, "delete role binding: %s", string(out))
 		}
@@ -123,7 +124,7 @@ func (k *KubernetesDriver) DeleteDevContainer(ctx context.Context, workspaceId s
 	// delete pull secret
 	if k.options.KubernetesPullSecretsEnabled != "" {
 		k.Log.Infof("Delete pull secret '%s'...", workspaceId)
-		err := k.DeletePullSecret(ctx, getPullSecretsName(workspaceId))
+		err := k.DeletePullSecret(ctx, k.getPullSecretsName(workspaceId))
 		if err != nil {
 			return err
 		}

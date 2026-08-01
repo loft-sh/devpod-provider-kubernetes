@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/loft-sh/devpod/pkg/encoding"
 	"github.com/loft-sh/devpod/pkg/random"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,11 +41,7 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 		}
 		pod = p
 	}
-	workspaceNamePart := workspaceId
-	if k.options.KubernetesResourceName != "" {
-		workspaceNamePart = strings.ReplaceAll(workspaceNamePart, ".", "-")
-	}
-	podName := encoding.SafeConcatNameMax([]string{"devpod", workspaceNamePart, random.String(6)}, 32)
+	podName := k.getArchitecturePodName(workspaceId, random.String(6))
 	pod.Namespace = k.namespace
 	pod.Name = podName
 
@@ -58,7 +53,7 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 	for k, label := range pod.Labels {
 		labels[k] = label
 	}
-	labels[DevPodWorkspaceLabel] = getWorkspaceLabelValue(workspaceId)
+	labels[DevPodWorkspaceLabel] = k.getWorkspaceLabelValue(workspaceId)
 
 	pod.Labels = labels
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever

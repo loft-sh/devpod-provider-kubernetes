@@ -43,7 +43,8 @@ func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, service
 
 	// try to find role binding
 	if k.options.ClusterRole != "" {
-		out, err = k.buildCmd(ctx, []string{"get", "rolebinding", id, "--ignore-not-found", "-o", "json"}).Output()
+		roleBindingName := k.getRoleBindingName(id)
+		out, err = k.buildCmd(ctx, []string{"get", "rolebinding", roleBindingName, "--ignore-not-found", "-o", "json"}).Output()
 		if err != nil {
 			return command.WrapCommandError(out, err)
 		} else if len(out) == 0 {
@@ -54,7 +55,7 @@ func (k *KubernetesDriver) createServiceAccount(ctx context.Context, id, service
 					APIVersion: rbacv1.SchemeGroupVersion.String(),
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name:   id,
+					Name:   roleBindingName,
 					Labels: ExtraDevPodLabels,
 				},
 				Subjects: []rbacv1.Subject{

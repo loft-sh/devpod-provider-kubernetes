@@ -33,20 +33,104 @@ func TestWorkspaceResourceName(t *testing.T) {
 	})
 }
 
-func TestDerivedResourceNamesRemainValid(t *testing.T) {
-	assert.Equal(t, "devpod-feature-auth", getWorkspaceLabelValue("devpod-feature-auth"))
-	assert.Equal(t, "devpod-pull-secret-devpod-feature-auth", getPullSecretsName("devpod-feature-auth"))
+func TestDefaultDerivedResourceNamesRemainUnchanged(t *testing.T) {
+	driver := resourceNameTestDriver("")
+	const workspaceName = "devpod-feature-auth"
+	const randomSuffix = "abcdef"
 
-	resourceName := strings.Repeat("a", validation.DNS1123SubdomainMaxLength)
-	workspaceLabelValue := getWorkspaceLabelValue(resourceName)
-	assert.Empty(t, validation.IsValidLabelValue(workspaceLabelValue))
-	assert.LessOrEqual(t, len(workspaceLabelValue), validation.LabelValueMaxLength)
-	pullSecretName := getPullSecretsName(resourceName)
-	assert.Empty(t, validation.IsDNS1123Subdomain(pullSecretName))
+	assert.Equal(t, workspaceName, driver.getWorkspaceLabelValue(workspaceName))
+	assert.Equal(t, "devpod-pull-secret-devpod-feature-auth", driver.getPullSecretsName(workspaceName))
+	assert.Equal(t, "devpod-devpod-feature-auth-ced3c", driver.getArchitecturePodName(workspaceName, randomSuffix))
+	assert.Equal(t, workspaceName, driver.getRoleBindingName(workspaceName))
+}
 
-	dottedResourceName := strings.Repeat("a.", 126) + "a"
-	assert.Empty(t, validation.IsDNS1123Subdomain(dottedResourceName))
-	assert.Empty(t, validation.IsDNS1123Subdomain(getPullSecretsName(dottedResourceName)))
+func TestExactDerivedResourceNamesAreValidAndCollisionResistant(t *testing.T) {
+	segments := []string{
+		strings.Repeat("a", 30), strings.Repeat("b", 30), strings.Repeat("c", 30), strings.Repeat("d", 30),
+		strings.Repeat("e", 30), strings.Repeat("f", 30), strings.Repeat("g", 30), strings.Repeat("h", 30),
+	}
+	dottedName := strings.Join(segments, ".")
+	hyphenatedName := strings.Replace(dottedName, ".", "-", 1)
+	assert.Empty(t, validation.IsDNS1123Subdomain(dottedName))
+	assert.Empty(t, validation.IsDNS1123Subdomain(hyphenatedName))
+
+	maxNameOne := strings.Join([]string{
+		strings.Repeat("i", 63), strings.Repeat("j", 63), strings.Repeat("k", 63), strings.Repeat("l", 61),
+	}, ".")
+	maxNameTwo := maxNameOne[:len(maxNameOne)-1] + "m"
+	assert.Len(t, maxNameOne, validation.DNS1123SubdomainMaxLength)
+	assert.Empty(t, validation.IsDNS1123Subdomain(maxNameOne))
+	assert.Empty(t, validation.IsDNS1123Subdomain(maxNameTwo))
+
+	for _, resourceName := range []string{dottedName, hyphenatedName, maxNameOne, maxNameTwo} {
+		t.Run(resourceName[:8], func(t *testing.T) {
+			driver := resourceNameTestDriver(resourceName)
+			workspaceLabelValue := driver.getWorkspaceLabelValue(resourceName)
+			pullSecretName := driver.getPullSecretsName(resourceName)
+			architecturePodName := driver.getArchitecturePodName(resourceName, "abcdef")
+			roleBindingName := driver.getRoleBindingName(resourceName)
+
+			assert.Empty(t, validation.IsValidLabelValue(workspaceLabelValue))
+			assert.LessOrEqual(t, len(workspaceLabelValue), validation.LabelValueMaxLength)
+			assert.Empty(t, validation.IsDNS1123Subdomain(pullSecretName))
+			assert.LessOrEqual(t, len(pullSecretName), validation.DNS1123SubdomainMaxLength)
+			assert.Empty(t, validation.IsDNS1123Subdomain(architecturePodName))
+			assert.LessOrEqual(t, len(architecturePodName), architecturePodNameMaxLength)
+			assert.Empty(t, validation.IsDNS1123Subdomain(roleBindingName))
+
+			digest := exactResourceNameDigest(resourceName)
+			assert.Contains(t, workspaceLabelValue, digest)
+			assert.Contains(t, pullSecretName, digest)
+			assert.Contains(t, architecturePodName, digest)
+		})
+	}
+
+	dottedDriver := resourceNameTestDriver(dottedName)
+	hyphenatedDriver := resourceNameTestDriver(hyphenatedName)
+	assert.NotEqual(t, dottedDriver.getWorkspaceLabelValue(dottedName), hyphenatedDriver.getWorkspaceLabelValue(hyphenatedName))
+	assert.NotEqual(t, dottedDriver.getPullSecretsName(dottedName), hyphenatedDriver.getPullSecretsName(hyphenatedName))
+	assert.NotEqual(t, dottedDriver.getArchitecturePodName(dottedName, "abcdef"), hyphenatedDriver.getArchitecturePodName(hyphenatedName, "abcdef"))
+
+	shortDottedName := "workspace.exact-name"
+	shortDottedDriver := resourceNameTestDriver(shortDottedName)
+	shortArchitectureName := shortDottedDriver.getArchitecturePodName(shortDottedName, "abcdef")
+	assert.Contains(t, shortArchitectureName, exactResourceNameDigest(shortDottedName))
+	assert.True(t, strings.HasSuffix(shortArchitectureName, "-abcdef"))
+	assert.NotEqual(t, shortArchitectureName, resourceNameTestDriver("workspace-exact-name").getArchitecturePodName("workspace-exact-name", "abcdef"))
+
+	maxDriverOne := resourceNameTestDriver(maxNameOne)
+	maxDriverTwo := resourceNameTestDriver(maxNameTwo)
+	assert.NotEqual(t, maxDriverOne.getWorkspaceLabelValue(maxNameOne), maxDriverTwo.getWorkspaceLabelValue(maxNameTwo))
+	assert.NotEqual(t, maxDriverOne.getPullSecretsName(maxNameOne), maxDriverTwo.getPullSecretsName(maxNameTwo))
+	assert.NotEqual(t, maxDriverOne.getArchitecturePodName(maxNameOne, "abcdef"), maxDriverTwo.getArchitecturePodName(maxNameTwo, "abcdef"))
+}
+
+func TestTargetArchitectureUsesExactHelperMapping(t *testing.T) {
+	resourceName := strings.Join([]string{
+		strings.Repeat("a", 63), strings.Repeat("b", 63), strings.Repeat("c", 63), strings.Repeat("d", 61),
+	}, ".")
+	driver := resourceNameTestDriver(resourceName)
+	manifestPath := filepath.Join(t.TempDir(), "architecture-pod.json")
+	driver.kubectl = writeFakeKubectl(t, `
+case "$*" in
+  "create -f -") cat > "$MANIFEST_PATH" ;;
+  "logs "*) printf 'x86_64\n' ;;
+esac
+`)
+	t.Setenv("MANIFEST_PATH", manifestPath)
+
+	architecture, err := driver.TargetArchitecture(context.Background(), "feature-auth")
+	mustNoError(t, err)
+	assert.Equal(t, "amd64", architecture)
+
+	podRaw, err := os.ReadFile(manifestPath)
+	mustNoError(t, err)
+	pod := &corev1.Pod{}
+	mustNoError(t, json.Unmarshal(podRaw, pod))
+	assert.Empty(t, validation.IsDNS1123Subdomain(pod.Name))
+	assert.LessOrEqual(t, len(pod.Name), architecturePodNameMaxLength)
+	assert.Contains(t, pod.Name, exactResourceNameDigest(resourceName))
+	assert.Equal(t, driver.getWorkspaceLabelValue(resourceName), pod.Labels[DevPodWorkspaceLabel])
 }
 
 func TestRenderedWorkspaceResourcesUseExactName(t *testing.T) {
