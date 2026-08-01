@@ -83,7 +83,7 @@ func (k *KubernetesDriver) getDevContainerPvc(ctx context.Context, id string) (*
 }
 
 func (k *KubernetesDriver) StopDevContainer(ctx context.Context, workspaceId string) error {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 
 	// delete pod
 	out, err := k.buildCmd(ctx, []string{"delete", "po", workspaceId, "--ignore-not-found"}).CombinedOutput()
@@ -95,7 +95,7 @@ func (k *KubernetesDriver) StopDevContainer(ctx context.Context, workspaceId str
 }
 
 func (k *KubernetesDriver) DeleteDevContainer(ctx context.Context, workspaceId string) error {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 
 	// delete pod
 	k.Log.Infof("Delete pod '%s'...", workspaceId)
@@ -142,7 +142,7 @@ func (k *KubernetesDriver) deletePod(ctx context.Context, podName string) error 
 }
 
 func (k *KubernetesDriver) CommandDevContainer(ctx context.Context, workspaceId, user, command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 
 	args := []string{"exec", "-c", "devpod"}
 	if stdin != nil {
@@ -159,7 +159,7 @@ func (k *KubernetesDriver) CommandDevContainer(ctx context.Context, workspaceId,
 }
 
 func (k *KubernetesDriver) GetDevContainerLogs(ctx context.Context, workspaceID string, stdout io.Writer, stderr io.Writer) error {
-	workspaceID = getID(workspaceID)
+	workspaceID = k.getID(workspaceID)
 
 	args := []string{"logs", "pods/" + workspaceID, "-c", "devpod"}
 

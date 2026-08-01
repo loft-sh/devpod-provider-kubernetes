@@ -118,12 +118,14 @@ var _ = ginkgo.Describe("PVC data source", func() {
 			return apierrors.IsNotFound(err)
 		}, time.Minute, time.Second).Should(gomega.BeTrue())
 
+		targetName := "pvc-clone-exact-target"
 		setProviderEnv(map[string]string{
 			"CREATE_NAMESPACE":                "false",
-			"DEVCONTAINER_ID":                 "devpod-pvc-clone-target",
+			"DEVCONTAINER_ID":                 "pvc-clone-target-workspace",
 			"KUBERNETES_CONFIG":               kubeConfig,
 			"KUBERNETES_NAMESPACE":            namespace,
 			"KUBERNETES_PULL_SECRETS_ENABLED": "false",
+			"KUBERNETES_RESOURCE_NAME":        targetName,
 			"NODE_SELECTOR":                   fmt.Sprintf("%s=%s", nodeSelectorKey, nodeSelectorValue),
 			"PVC_DATA_SOURCE":                 sourceName,
 		})
@@ -142,12 +144,16 @@ var _ = ginkgo.Describe("PVC data source", func() {
 		})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-		targetPod, err := client.CoreV1().Pods(namespace).Get(ctx, providerOptions.DevContainerID, metav1.GetOptions{})
+		targetPod, err := client.CoreV1().Pods(namespace).Get(ctx, targetName, metav1.GetOptions{})
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(targetPod.Name).To(gomega.Equal(targetName))
 		gomega.Expect(targetPod.Spec.NodeSelector).To(gomega.HaveKeyWithValue(nodeSelectorKey, nodeSelectorValue))
+		targetPVC, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, targetName, metav1.GetOptions{})
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(targetPVC.Name).To(gomega.Equal(targetName))
 
 		gomega.Eventually(func() string {
-			raw, err := client.CoreV1().Pods(namespace).GetLogs(providerOptions.DevContainerID, &corev1.PodLogOptions{}).DoRaw(ctx)
+			raw, err := client.CoreV1().Pods(namespace).GetLogs(targetName, &corev1.PodLogOptions{}).DoRaw(ctx)
 			if err != nil {
 				return ""
 			}

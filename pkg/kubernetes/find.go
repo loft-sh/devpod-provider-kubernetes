@@ -8,7 +8,7 @@ import (
 )
 
 func (k *KubernetesDriver) FindDevContainer(ctx context.Context, workspaceId string) (*config.ContainerDetails, error) {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 
 	pvc, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
 	if err != nil {

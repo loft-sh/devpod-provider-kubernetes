@@ -12,9 +12,11 @@ import (
 	optionspkg "github.com/loft-sh/devpod-provider-kubernetes/pkg/options"
 	"github.com/loft-sh/devpod/pkg/devcontainer/config"
 	"github.com/loft-sh/devpod/pkg/driver"
+	"github.com/loft-sh/devpod/pkg/encoding"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const DevContainerName = "devpod"
@@ -43,7 +45,7 @@ func (k *KubernetesDriver) RunDevContainer(
 	workspaceId string,
 	options *driver.RunOptions,
 ) error {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 
 	// namespace
 	if k.namespace != "" && k.options.CreateNamespace == "true" {
@@ -224,8 +226,9 @@ func (k *KubernetesDriver) runContainer(
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	affinityPodID := ""
+	workspaceLabelValue := getWorkspaceLabelValue(id)
 
-	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", DevPodWorkspaceLabel + "=" + id}, nil, stdout, stderr)
+	err = k.runCommand(ctx, []string{"get", "pods", "-o=name", "-l", DevPodWorkspaceLabel + "=" + workspaceLabelValue}, nil, stdout, stderr)
 	if err != nil {
 		k.Log.Debugf("skipping finding cluster architecture: %s %s %w", stdout.String(), stderr.String(), err)
 	}
@@ -256,7 +259,7 @@ func (k *KubernetesDriver) runContainer(
 						{
 							Key:      DevPodWorkspaceLabel,
 							Operator: metav1.LabelSelectorOpIn,
-							Values:   []string{id},
+							Values:   []string{workspaceLabelValue},
 						},
 					},
 				},
@@ -342,7 +345,7 @@ func (k *KubernetesDriver) runPod(ctx context.Context, id string, pod *corev1.Po
 
 	if affinity {
 		k.Log.Infof("Cleaning up architecture detection pod")
-		err := k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", DevPodWorkspaceLabel + "=" + id}, nil, buf, buf)
+		err := k.runCommand(ctx, []string{"delete", "pods", "--force", "-l", DevPodWorkspaceLabel + "=" + getWorkspaceLabelValue(id)}, nil, buf, buf)
 		if err != nil {
 			return errors.Wrapf(err, "cleanup jobs: %s", buf.String())
 		}
@@ -496,7 +499,7 @@ func getNodeSelector(pod *corev1.Pod, rawNodeSelector string) (map[string]string
 }
 
 func (k *KubernetesDriver) StartDevContainer(ctx context.Context, workspaceId string) error {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 	_, containerInfo, err := k.getDevContainerPvc(ctx, workspaceId)
 	if err != nil {
 		return err
@@ -512,10 +515,30 @@ func (k *KubernetesDriver) StartDevContainer(ctx context.Context, workspaceId st
 	)
 }
 
+func (k *KubernetesDriver) getID(workspaceID string) string {
+	if k.options.KubernetesResourceName != "" {
+		return k.options.KubernetesResourceName
+	}
+
+	return getID(workspaceID)
+}
+
 func getID(workspaceID string) string {
 	return "devpod-" + workspaceID
 }
 
+func getWorkspaceLabelValue(workspaceID string) string {
+	return encoding.SafeConcatNameMax([]string{workspaceID}, validation.LabelValueMaxLength)
+}
+
 func getPullSecretsName(workspaceID string) string {
-	return fmt.Sprintf("devpod-pull-secret-%s", workspaceID)
+	name := fmt.Sprintf("devpod-pull-secret-%s", workspaceID)
+	if len(name) <= validation.DNS1123SubdomainMaxLength {
+		return name
+	}
+
+	return encoding.SafeConcatNameMax(
+		[]string{"devpod", "pull", "secret", strings.ReplaceAll(workspaceID, ".", "-")},
+		validation.DNS1123SubdomainMaxLength,
+	)
 }

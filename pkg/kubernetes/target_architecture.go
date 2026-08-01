@@ -15,7 +15,7 @@ import (
 )
 
 func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId string) (string, error) {
-	workspaceId = getID(workspaceId)
+	workspaceId = k.getID(workspaceId)
 
 	// namespace
 	if k.namespace != "" && k.options.CreateNamespace == "true" {
@@ -42,7 +42,11 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 		}
 		pod = p
 	}
-	podName := encoding.SafeConcatNameMax([]string{"devpod", workspaceId, random.String(6)}, 32)
+	workspaceNamePart := workspaceId
+	if k.options.KubernetesResourceName != "" {
+		workspaceNamePart = strings.ReplaceAll(workspaceNamePart, ".", "-")
+	}
+	podName := encoding.SafeConcatNameMax([]string{"devpod", workspaceNamePart, random.String(6)}, 32)
 	pod.Namespace = k.namespace
 	pod.Name = podName
 
@@ -54,7 +58,7 @@ func (k *KubernetesDriver) TargetArchitecture(ctx context.Context, workspaceId s
 	for k, label := range pod.Labels {
 		labels[k] = label
 	}
-	labels[DevPodWorkspaceLabel] = workspaceId
+	labels[DevPodWorkspaceLabel] = getWorkspaceLabelValue(workspaceId)
 
 	pod.Labels = labels
 	pod.Spec.RestartPolicy = corev1.RestartPolicyNever

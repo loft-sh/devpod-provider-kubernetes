@@ -20,7 +20,8 @@ type Options struct {
 }
 
 type ComparableOptions struct {
-	DevContainerID string `json:"devcontainerId,omitempty"`
+	DevContainerID         string `json:"devcontainerId,omitempty"`
+	KubernetesResourceName string `json:"kubernetesResourceName,omitempty"`
 
 	KubernetesPullSecretsEnabled string `json:"kubernetesPullSecretsEnabled,omitempty"`
 	CreateNamespace              string `json:"createNamespace,omitempty"`
@@ -87,6 +88,13 @@ func FromEnv() (*Options, error) {
 		validationErrors := validation.IsDNS1123Subdomain(retOptions.PvcDataSource)
 		if len(validationErrors) > 0 {
 			return nil, fmt.Errorf("invalid PVC_DATA_SOURCE %q: %s", retOptions.PvcDataSource, strings.Join(validationErrors, "; "))
+		}
+	}
+	retOptions.KubernetesResourceName = os.Getenv("KUBERNETES_RESOURCE_NAME")
+	if retOptions.KubernetesResourceName != "" {
+		validationErrors := validation.IsDNS1123Subdomain(retOptions.KubernetesResourceName)
+		if len(validationErrors) > 0 {
+			return nil, fmt.Errorf("invalid KUBERNETES_RESOURCE_NAME %q: %s", retOptions.KubernetesResourceName, strings.Join(validationErrors, "; "))
 		}
 	}
 

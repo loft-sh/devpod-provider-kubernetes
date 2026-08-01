@@ -23,6 +23,7 @@ optionGroups:
       - STORAGE_CLASS
       - PVC_ACCESS_MODE
       - PVC_ANNOTATIONS
+      - KUBERNETES_RESOURCE_NAME
       - RESOURCES
       - POD_MANIFEST_TEMPLATE
       - ARCH_DETECTION_POD_MANIFEST_TEMPLATE
@@ -90,6 +91,8 @@ options:
   PVC_ANNOTATIONS:
     description: If defined, DevPod will use add the given annotations to the main workspace pvc
     global: true
+  KUBERNETES_RESOURCE_NAME:
+    description: "EXPERIMENTAL! If defined, DevPod uses this exact value, without a devpod- prefix, as the metadata.name of the workspace pod, workspace PVC, and workspace role binding when enabled. The architecture detection pod and pull secret keep derived names based on this value. The service account keeps the SERVICE_ACCOUNT name. The value must be a DNS-1123 subdomain with at most 253 characters. Do not change this option for an existing workspace. A change makes lifecycle operations target different resources and can orphan the original resources."
   NODE_SELECTOR:
     description: The node selector to use for the workspace pod. E.g. my-label=value,my-label-2=value-2
     global: true

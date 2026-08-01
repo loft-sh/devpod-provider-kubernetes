@@ -76,3 +76,88 @@ func TestFromEnvRejectsInvalidPvcDataSource(t *testing.T) {
 		})
 	}
 }
+
+func TestFromEnvKubernetesResourceName(t *testing.T) {
+	t.Setenv("DEVCONTAINER_ID", "feature-auth")
+	t.Setenv("KUBERNETES_RESOURCE_NAME", "workspace.exact-name")
+
+	got, err := FromEnv()
+	assert.NoError(t, err)
+	assert.Equal(t, "workspace.exact-name", got.ComparableOptions.KubernetesResourceName)
+
+	raw, err := json.Marshal(got)
+	assert.NoError(t, err)
+
+	restored := &Options{}
+	assert.NoError(t, json.Unmarshal(raw, restored))
+	assert.Equal(t, got.ComparableOptions, restored.ComparableOptions)
+}
+
+func TestComparableOptionsIncludesKubernetesResourceName(t *testing.T) {
+	left := &ComparableOptions{KubernetesResourceName: "workspace-one"}
+	right := &ComparableOptions{KubernetesResourceName: "workspace-one"}
+	assert.True(t, Equal(left, right))
+
+	right.KubernetesResourceName = "workspace-two"
+	assert.False(t, Equal(left, right))
+}
+
+func TestFromEnvKubernetesResourceNameOptional(t *testing.T) {
+	t.Setenv("DEVCONTAINER_ID", "feature-auth")
+
+	for _, test := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "absent"},
+		{name: "empty", value: pointerTo("")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.value == nil {
+				unsetEnvironment(t, "KUBERNETES_RESOURCE_NAME")
+			} else {
+				t.Setenv("KUBERNETES_RESOURCE_NAME", *test.value)
+			}
+
+			got, err := FromEnv()
+			assert.NoError(t, err)
+			assert.Empty(t, got.KubernetesResourceName)
+		})
+	}
+}
+
+func TestFromEnvAcceptsMaxLengthKubernetesResourceName(t *testing.T) {
+	t.Setenv("DEVCONTAINER_ID", "feature-auth")
+	value := strings.Repeat("a", 253)
+	t.Setenv("KUBERNETES_RESOURCE_NAME", value)
+
+	got, err := FromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, value, got.KubernetesResourceName)
+}
+
+func TestFromEnvRejectsInvalidKubernetesResourceName(t *testing.T) {
+	t.Setenv("DEVCONTAINER_ID", "feature-auth")
+
+	for _, value := range []string{
+		"Uppercase",
+		"unsafe_name",
+		"unsafe/name",
+		"-leading-hyphen",
+		"trailing-hyphen-",
+		strings.Repeat("a", 254),
+	} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("KUBERNETES_RESOURCE_NAME", value)
+
+			_, err := FromEnv()
+			assert.ErrorContains(t, err, "KUBERNETES_RESOURCE_NAME")
+		})
+	}
+}
+
+func pointerTo(value string) *string {
+	return &value
+}
