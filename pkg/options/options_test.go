@@ -3,9 +3,11 @@ package options
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -156,6 +158,54 @@ func TestFromEnvRejectsInvalidKubernetesResourceName(t *testing.T) {
 			assert.ErrorContains(t, err, "KUBERNETES_RESOURCE_NAME")
 		})
 	}
+}
+
+type providerOptionGroup struct {
+	Options []string `json:"options"`
+	Name    string   `json:"name"`
+}
+
+type providerSchema struct {
+	OptionGroups []providerOptionGroup     `json:"optionGroups"`
+	Options      map[string]map[string]any `json:"options"`
+}
+
+func TestProviderSchemasIncludeNewOptions(t *testing.T) {
+	schemas := map[string]providerSchema{}
+	for _, filename := range []string{"provider.yaml", "provider-dev.yaml"} {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "hack", "provider", filename))
+		if err != nil {
+			t.Fatal(err)
+		}
+		schema := providerSchema{}
+		if err := yaml.Unmarshal(raw, &schema); err != nil {
+			t.Fatalf("parse %s: %v", filename, err)
+		}
+		for _, optionName := range []string{"PVC_DATA_SOURCE", "KUBERNETES_RESOURCE_NAME"} {
+			definition, ok := schema.Options[optionName]
+			assert.True(t, ok, "%s must define %s", filename, optionName)
+			assert.NotEmpty(t, definition["description"], "%s must describe %s", filename, optionName)
+			assert.True(t, schemaGroupHasOption(schema.OptionGroups, "Advanced Options", optionName), "%s must include %s in Advanced Options", filename, optionName)
+		}
+		schemas[filename] = schema
+	}
+
+	assert.Equal(t, schemas["provider.yaml"].Options["PVC_DATA_SOURCE"], schemas["provider-dev.yaml"].Options["PVC_DATA_SOURCE"])
+	assert.Equal(t, schemas["provider.yaml"].Options["KUBERNETES_RESOURCE_NAME"], schemas["provider-dev.yaml"].Options["KUBERNETES_RESOURCE_NAME"])
+}
+
+func schemaGroupHasOption(groups []providerOptionGroup, groupName, optionName string) bool {
+	for _, group := range groups {
+		if group.Name != groupName {
+			continue
+		}
+		for _, groupedOption := range group.Options {
+			if groupedOption == optionName {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func pointerTo(value string) *string {

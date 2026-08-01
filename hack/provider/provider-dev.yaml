@@ -23,6 +23,7 @@ optionGroups:
       - STORAGE_CLASS
       - PVC_ACCESS_MODE
       - PVC_ANNOTATIONS
+      - PVC_DATA_SOURCE
       - KUBERNETES_RESOURCE_NAME
       - RESOURCES
       - POD_MANIFEST_TEMPLATE
@@ -91,6 +92,8 @@ options:
   PVC_ANNOTATIONS:
     description: If defined, DevPod will use add the given annotations to the main workspace pvc
     global: true
+  PVC_DATA_SOURCE:
+    description: "If defined, DevPod will clone this persistent volume claim into the workspace PVC. The source PVC must be in the same namespace and availability zone. The target workspace PVC must request at least as much storage as the source PVC. On AWS, this feature requires EBS CSI driver v1.51.0 or newer and the ec2:CopyVolumes IAM permission."
   KUBERNETES_RESOURCE_NAME:
     description: "EXPERIMENTAL! If defined, DevPod uses this exact value, without a devpod- prefix, as the metadata.name of the workspace pod, workspace PVC, and workspace role binding when enabled. The architecture detection pod and pull secret keep derived names based on this value. The service account keeps the SERVICE_ACCOUNT name. The value must be a DNS-1123 subdomain with at most 253 characters. Do not change this option for an existing workspace. A change makes lifecycle operations target different resources and can orphan the original resources."
   NODE_SELECTOR:

@@ -58,10 +58,6 @@ func (k *KubernetesDriver) getArchitecturePodName(workspaceName, randomSuffix st
 
 	name := strings.Join([]string{"devpod", workspaceName, randomSuffix}, "-")
 	normalizedName := strings.ReplaceAll(name, ".", "-")
-	if normalizedName == name && len(name) <= architecturePodNameMaxLength {
-		return name
-	}
-
 	digest := exactResourceNameDigest(workspaceName)
 	prefixLength := architecturePodNameMaxLength - len(digest) - len(randomSuffix) - 2
 	prefix := strings.TrimRight(normalizedName[:min(len(normalizedName), prefixLength)], ".-_")
@@ -77,10 +73,6 @@ func deriveExactResourceName(originalName, name string, maxLength int, normalize
 	if normalize {
 		normalizedName = strings.ReplaceAll(normalizedName, ".", "-")
 	}
-	if normalizedName == name && len(name) <= maxLength {
-		return name
-	}
-
 	digest := exactResourceNameDigest(originalName)
 	prefixLength := maxLength - len(digest) - 1
 	prefix := strings.TrimRight(normalizedName[:min(len(normalizedName), prefixLength)], ".-_")

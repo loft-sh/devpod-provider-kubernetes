@@ -88,7 +88,7 @@ func TestExactDerivedResourceNamesAreValidAndCollisionResistant(t *testing.T) {
 	assert.Empty(t, validation.IsDNS1123Subdomain(maxNameOne))
 	assert.Empty(t, validation.IsDNS1123Subdomain(maxNameTwo))
 
-	for _, resourceName := range []string{dottedName, hyphenatedName, maxNameOne, maxNameTwo} {
+	for _, resourceName := range []string{"workspace-exact-name", dottedName, hyphenatedName, maxNameOne, maxNameTwo} {
 		t.Run(resourceName[:8], func(t *testing.T) {
 			driver := resourceNameTestDriver(resourceName)
 			workspaceLabelValue := driver.getWorkspaceLabelValue(resourceName)
@@ -131,10 +131,63 @@ func TestExactDerivedResourceNamesAreValidAndCollisionResistant(t *testing.T) {
 	assert.NotEqual(t, maxDriverOne.getArchitecturePodName(maxNameOne, "abcdef"), maxDriverTwo.getArchitecturePodName(maxNameTwo, "abcdef"))
 }
 
-func TestTargetArchitectureUsesExactHelperMapping(t *testing.T) {
-	resourceName := strings.Join([]string{
+func TestExactDerivedResourceNamesDoNotCollideWithShortExactNames(t *testing.T) {
+	transformedName := strings.Join([]string{
 		strings.Repeat("a", 63), strings.Repeat("b", 63), strings.Repeat("c", 63), strings.Repeat("d", 61),
 	}, ".")
+	const randomSuffix = "abcdef"
+	transformedDriver := resourceNameTestDriver(transformedName)
+
+	tests := []struct {
+		name            string
+		transformed     string
+		shortExactName  func(string) string
+		deriveShortName func(*KubernetesDriver, string) string
+	}{
+		{
+			name:           "workspace label",
+			transformed:    transformedDriver.getWorkspaceLabelValue(transformedName),
+			shortExactName: func(output string) string { return output },
+			deriveShortName: func(driver *KubernetesDriver, name string) string {
+				return driver.getWorkspaceLabelValue(name)
+			},
+		},
+		{
+			name:        "pull secret",
+			transformed: transformedDriver.getPullSecretsName(transformedName),
+			shortExactName: func(output string) string {
+				return strings.TrimPrefix(output, "devpod-pull-secret-")
+			},
+			deriveShortName: func(driver *KubernetesDriver, name string) string {
+				return driver.getPullSecretsName(name)
+			},
+		},
+		{
+			name:        "architecture pod",
+			transformed: transformedDriver.getArchitecturePodName(transformedName, randomSuffix),
+			shortExactName: func(output string) string {
+				return strings.TrimSuffix(strings.TrimPrefix(output, "devpod-"), "-"+randomSuffix)
+			},
+			deriveShortName: func(driver *KubernetesDriver, name string) string {
+				return driver.getArchitecturePodName(name, randomSuffix)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			shortExactName := test.shortExactName(test.transformed)
+			assert.Empty(t, validation.IsDNS1123Subdomain(shortExactName))
+			shortDerivedName := test.deriveShortName(resourceNameTestDriver(shortExactName), shortExactName)
+
+			assert.NotEqual(t, test.transformed, shortDerivedName)
+			assert.Contains(t, shortDerivedName, exactResourceNameDigest(shortExactName))
+		})
+	}
+}
+
+func TestTargetArchitectureUsesExactHelperMapping(t *testing.T) {
+	resourceName := "workspace-exact-name"
 	driver := resourceNameTestDriver(resourceName)
 	manifestPath := filepath.Join(t.TempDir(), "architecture-pod.json")
 	driver.kubectl = writeFakeKubectl(t, `
@@ -156,7 +209,42 @@ esac
 	assert.Empty(t, validation.IsDNS1123Subdomain(pod.Name))
 	assert.LessOrEqual(t, len(pod.Name), architecturePodNameMaxLength)
 	assert.Contains(t, pod.Name, exactResourceNameDigest(resourceName))
-	assert.Equal(t, driver.getWorkspaceLabelValue(resourceName), pod.Labels[DevPodWorkspaceLabel])
+	expectedWorkspaceLabel := driver.getWorkspaceLabelValue(resourceName)
+	assert.Contains(t, expectedWorkspaceLabel, exactResourceNameDigest(resourceName))
+	assert.Equal(t, expectedWorkspaceLabel, pod.Labels[DevPodWorkspaceLabel])
+}
+
+func TestExactWorkspaceLabelIsConsistentAcrossArchitectureLifecycle(t *testing.T) {
+	const resourceName = "workspace-exact-name"
+	driver := resourceNameTestDriver(resourceName)
+	commandLog := filepath.Join(t.TempDir(), "commands.log")
+	manifestPath := filepath.Join(t.TempDir(), "workspace-pod.json")
+	driver.kubectl = writeFakeKubectl(t, `
+printf '%s\n' "$*" >> "$COMMAND_LOG"
+case "$*" in
+  "get pods -o=name -l "*) printf 'pod/architecture-helper\n' ;;
+  "create -f -") cat > "$MANIFEST_PATH" ;;
+esac
+`)
+	t.Setenv("COMMAND_LOG", commandLog)
+	t.Setenv("MANIFEST_PATH", manifestPath)
+
+	mustNoError(t, driver.runContainer(context.Background(), resourceName, resourceNameRunOptions(), false))
+
+	expectedLabel := driver.getWorkspaceLabelValue(resourceName)
+	assert.Contains(t, expectedLabel, exactResourceNameDigest(resourceName))
+	rawLog, err := os.ReadFile(commandLog)
+	mustNoError(t, err)
+	commands := string(rawLog)
+	assert.Contains(t, commands, "get pods -o=name -l "+DevPodWorkspaceLabel+"="+expectedLabel)
+	assert.Contains(t, commands, "delete pods --force -l "+DevPodWorkspaceLabel+"="+expectedLabel)
+
+	podRaw, err := os.ReadFile(manifestPath)
+	mustNoError(t, err)
+	pod := &corev1.Pod{}
+	mustNoError(t, json.Unmarshal(podRaw, pod))
+	requirements := pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions
+	assert.Equal(t, []string{expectedLabel}, requirements[0].Values)
 }
 
 func TestRenderedWorkspaceResourcesUseExactName(t *testing.T) {
