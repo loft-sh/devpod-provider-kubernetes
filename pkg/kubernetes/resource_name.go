@@ -29,7 +29,7 @@ func getID(workspaceID string) string {
 
 func (k *KubernetesDriver) getWorkspaceLabelValue(workspaceName string) string {
 	if k.options.KubernetesResourceName == "" {
-		return workspaceName
+		return encoding.SafeConcatNameMax([]string{workspaceName}, validation.LabelValueMaxLength)
 	}
 
 	return deriveExactResourceName(workspaceName, workspaceName, validation.LabelValueMaxLength, false)
@@ -38,7 +38,14 @@ func (k *KubernetesDriver) getWorkspaceLabelValue(workspaceName string) string {
 func (k *KubernetesDriver) getPullSecretsName(workspaceName string) string {
 	name := fmt.Sprintf("devpod-pull-secret-%s", workspaceName)
 	if k.options.KubernetesResourceName == "" {
-		return name
+		if len(name) <= validation.DNS1123SubdomainMaxLength {
+			return name
+		}
+
+		return encoding.SafeConcatNameMax(
+			[]string{"devpod", "pull", "secret", strings.ReplaceAll(workspaceName, ".", "-")},
+			validation.DNS1123SubdomainMaxLength,
+		)
 	}
 
 	return deriveExactResourceName(workspaceName, name, validation.DNS1123SubdomainMaxLength, len(name) > validation.DNS1123SubdomainMaxLength)

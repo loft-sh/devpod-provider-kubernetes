@@ -33,15 +33,41 @@ func TestWorkspaceResourceName(t *testing.T) {
 	})
 }
 
-func TestDefaultDerivedResourceNamesRemainUnchanged(t *testing.T) {
+func TestDefaultDerivedResourceNamesPreserveLegacyMapping(t *testing.T) {
 	driver := resourceNameTestDriver("")
-	const workspaceName = "devpod-feature-auth"
-	const randomSuffix = "abcdef"
 
-	assert.Equal(t, workspaceName, driver.getWorkspaceLabelValue(workspaceName))
-	assert.Equal(t, "devpod-pull-secret-devpod-feature-auth", driver.getPullSecretsName(workspaceName))
-	assert.Equal(t, "devpod-devpod-feature-auth-ced3c", driver.getArchitecturePodName(workspaceName, randomSuffix))
-	assert.Equal(t, workspaceName, driver.getRoleBindingName(workspaceName))
+	t.Run("short workspace name", func(t *testing.T) {
+		const workspaceName = "devpod-feature-auth"
+		const randomSuffix = "abcdef"
+
+		workspaceLabelValue := driver.getWorkspaceLabelValue(workspaceName)
+		pullSecretName := driver.getPullSecretsName(workspaceName)
+		assert.Equal(t, workspaceName, workspaceLabelValue)
+		assert.Equal(t, "devpod-pull-secret-devpod-feature-auth", pullSecretName)
+		assert.Equal(t, "devpod-devpod-feature-auth-ced3c", driver.getArchitecturePodName(workspaceName, randomSuffix))
+		assert.Equal(t, workspaceName, driver.getRoleBindingName(workspaceName))
+		assert.Empty(t, validation.IsValidLabelValue(workspaceLabelValue))
+		assert.LessOrEqual(t, len(workspaceLabelValue), validation.LabelValueMaxLength)
+		assert.Empty(t, validation.IsDNS1123Subdomain(pullSecretName))
+		assert.LessOrEqual(t, len(pullSecretName), validation.DNS1123SubdomainMaxLength)
+	})
+
+	t.Run("long workspace name", func(t *testing.T) {
+		workspaceName := strings.Join([]string{
+			strings.Repeat("a", 63), strings.Repeat("b", 63), strings.Repeat("c", 63), strings.Repeat("d", 61),
+		}, ".")
+		const legacyWorkspaceLabelValue = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-5fcf0"
+		const legacyPullSecretName = "devpod-pull-secret-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc-dddddddddddddddddddddddddddddddddddd-9c5e9"
+
+		workspaceLabelValue := driver.getWorkspaceLabelValue(workspaceName)
+		pullSecretName := driver.getPullSecretsName(workspaceName)
+		assert.Equal(t, legacyWorkspaceLabelValue, workspaceLabelValue)
+		assert.Equal(t, legacyPullSecretName, pullSecretName)
+		assert.Empty(t, validation.IsValidLabelValue(workspaceLabelValue))
+		assert.Len(t, workspaceLabelValue, validation.LabelValueMaxLength)
+		assert.Empty(t, validation.IsDNS1123Subdomain(pullSecretName))
+		assert.Len(t, pullSecretName, validation.DNS1123SubdomainMaxLength)
+	})
 }
 
 func TestExactDerivedResourceNamesAreValidAndCollisionResistant(t *testing.T) {
